@@ -147,6 +147,13 @@
   .empty{color:var(--muted);text-align:center;padding:50px;font-size:13px;}
   .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--primary-soft);color:var(--primary);}
 
+  .table-wrap.retention{max-height:560px;}
+  .table-wrap.retention table th:first-child,
+  .table-wrap.retention table td:first-child{
+    position:sticky;left:0;background:var(--panel);z-index:2;text-align:left;white-space:nowrap;
+  }
+  .table-wrap.retention table th{z-index:3;}
+
   @media (max-width:860px){
     .sidebar{position:fixed;left:0;top:0;transform:translateX(-100%);transition:.2s;z-index:20;box-shadow:0 0 0 100vmax rgba(0,0,0,0);}
     .sidebar.open{transform:translateX(0);box-shadow:0 0 40px rgba(0,0,0,.3);}
@@ -215,6 +222,10 @@
       <a href="#customers" data-target="customers">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
         ลูกค้า
+      </a>
+      <a href="#retention" data-target="retention">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+        Retention
       </a>
       <a href="#transactions" data-target="transactions">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
@@ -346,6 +357,20 @@
         </div>
       </section>
 
+      <section class="block" id="retention">
+        <div class="card">
+          <div class="card-head"><h3>Retention</h3><span class="tag" id="retentionTag">-</span></div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ยอดซื้อรายเดือนต่อลูกค้า เรียงตามยอดขายสูงสุด · นับตามตัวกรองด้านบน (ใช้ช่องค้นหาลูกค้าเพื่อดูรายอื่นนอก Top 40)</div>
+          <div class="table-wrap retention">
+            <table>
+              <thead id="retentionHead"></thead>
+              <tbody id="retentionBody"></tbody>
+            </table>
+            <div class="empty" id="retentionEmpty" style="display:none">ไม่พบข้อมูล</div>
+          </div>
+        </div>
+      </section>
+
       <section class="block" id="transactions">
         <div class="card">
           <div class="card-head"><h3>รายการล่าสุด</h3><span class="tag" id="tblCount">-</span></div>
@@ -379,6 +404,10 @@
   <a href="#customers" data-target="customers">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
     ลูกค้า
+  </a>
+  <a href="#retention" data-target="retention">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+    Retention
   </a>
   <a href="#transactions" data-target="transactions">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
@@ -539,6 +568,7 @@ function applyFilters() {
   renderTable(data);
   renderNewCustomers(data);
   renderDormantCustomers(data);
+  renderRetention(data);
 }
 
 function renderKPIs(data) {
@@ -724,6 +754,50 @@ function renderDormantCustomers(data) {
     </tr>`;
   }).join("");
   empty.style.display = dormant.length ? "none" : "block";
+}
+
+function renderRetention(data) {
+  const RETENTION_LIMIT = 40;
+  const map = {};
+  const monthsSet = new Set();
+
+  data.forEach(r => {
+    if (!r.date) return;
+    const key = r.memberId || r.customer;
+    const ym = r.date.slice(0, 7);
+    monthsSet.add(ym);
+    if (!map[key]) map[key] = { name: r.customer, months: {}, total: 0 };
+    map[key].months[ym] = (map[key].months[ym] || 0) + r.sales;
+    map[key].total += r.sales;
+  });
+
+  const months = [...monthsSet].sort();
+  const customers = Object.values(map).sort((a, b) => b.total - a.total);
+  const shown = customers.slice(0, RETENTION_LIMIT);
+  const maxCell = Math.max(1, ...shown.flatMap(c => months.map(m => c.months[m] || 0)));
+
+  document.getElementById("retentionTag").textContent = `แสดง ${shown.length.toLocaleString()} จาก ${customers.length.toLocaleString()} ลูกค้า`;
+
+  document.getElementById("retentionHead").innerHTML = `<tr>
+    <th>ลูกค้า</th>${months.map(m => `<th class="num">${m}</th>`).join("")}<th class="num">รวม</th>
+  </tr>`;
+
+  const body = document.getElementById("retentionBody");
+  const empty = document.getElementById("retentionEmpty");
+
+  body.innerHTML = shown.map(c => {
+    const cells = months.map(m => {
+      const v = c.months[m] || 0;
+      if (!v) return `<td class="num" style="color:var(--muted);">-</td>`;
+      const intensity = Math.min(1, v / maxCell);
+      const bg = `color-mix(in srgb, var(--primary) ${Math.round(intensity * 70 + 10)}%, var(--panel))`;
+      const textColor = intensity > 0.45 ? "#fff" : "var(--text)";
+      return `<td class="num" style="background:${bg};color:${textColor};font-weight:600;">${fmt(v)}</td>`;
+    }).join("");
+    return `<tr><td>${c.name}</td>${cells}<td class="num" style="font-weight:700;">${fmt(c.total)}</td></tr>`;
+  }).join("");
+
+  empty.style.display = shown.length ? "none" : "block";
 }
 
 ["fYear", "fMonth", "fSeller", "fDateFrom", "fDateTo"].forEach(id => document.getElementById(id).addEventListener("change", applyFilters));
