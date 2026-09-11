@@ -371,7 +371,7 @@
         </div>
         <div class="card">
           <div class="card-head"><h3>ลูกค้าที่เงียบไป</h3><span class="tag" id="dormantTag">-</span></div>
-          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ยอดสะสม &gt; 10,000 บาท และไม่ซื้อเกิน 30 วัน (นับในช่วงตามตัวกรองด้านบน)</div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ยอดสะสม &gt; 5,000 บาท และไม่ซื้อเกิน 30 วัน (นับในช่วงตามตัวกรองด้านบน)</div>
           <div class="table-wrap" style="max-height:300px;">
             <table>
               <thead id="dormantHead">
@@ -780,7 +780,7 @@ function getDormantCustomers(data) {
   const dayMs = 86400000;
   const maxDateObj = new Date(maxDate);
   const DORMANT_DAYS = 30;
-  const MIN_SPEND = 10000;
+  const MIN_SPEND = 5000;
 
   return Object.values(map)
     .map(c => ({ ...c, daysSince: Math.round((maxDateObj - new Date(c.lastDate)) / dayMs) }))
