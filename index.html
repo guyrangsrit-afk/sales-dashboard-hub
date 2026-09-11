@@ -841,6 +841,11 @@ document.querySelectorAll("#dormantHead th.sortable").forEach(th => {
   });
 });
 
+let retentionMonths = [];
+let retentionShown = [];
+let retentionTotalCount = 0;
+let retentionSort = { key: "total", dir: "desc" };
+
 function renderRetention(data) {
   const RETENTION_LIMIT = 40;
   const map = {};
@@ -856,21 +861,40 @@ function renderRetention(data) {
     map[key].total += r.sales;
   });
 
-  const months = [...monthsSet].sort();
+  retentionMonths = [...monthsSet].sort();
   const customers = Object.values(map).sort((a, b) => b.total - a.total);
-  const shown = customers.slice(0, RETENTION_LIMIT);
-  const maxCell = Math.max(1, ...shown.flatMap(c => months.map(m => c.months[m] || 0)));
+  retentionShown = customers.slice(0, RETENTION_LIMIT);
+  retentionTotalCount = customers.length;
 
-  document.getElementById("retentionTag").textContent = `แสดง ${shown.length.toLocaleString()} จาก ${customers.length.toLocaleString()} ลูกค้า`;
+  renderRetentionTable();
+}
 
+function renderRetentionTable() {
+  const months = retentionMonths;
+  const { key, dir } = retentionSort;
+  const maxCell = Math.max(1, ...retentionShown.flatMap(c => months.map(m => c.months[m] || 0)));
+
+  const sorted = retentionShown.slice().sort((a, b) => {
+    const av = key === "name" ? a.name.toLowerCase() : (key === "total" ? a.total : (a.months[key] || 0));
+    const bv = key === "name" ? b.name.toLowerCase() : (key === "total" ? b.total : (b.months[key] || 0));
+    if (av < bv) return dir === "asc" ? -1 : 1;
+    if (av > bv) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  document.getElementById("retentionTag").textContent = `แสดง ${retentionShown.length.toLocaleString()} จาก ${retentionTotalCount.toLocaleString()} ลูกค้า`;
+
+  const arrow = (k) => k === key ? (dir === "asc" ? "▲" : "▼") : "";
   document.getElementById("retentionHead").innerHTML = `<tr>
-    <th>ลูกค้า</th>${months.map(m => `<th class="num">${m}</th>`).join("")}<th class="num">รวม</th>
+    <th class="sortable" data-key="name">ลูกค้า<span class="sort-arrow">${arrow("name")}</span></th>
+    ${months.map(m => `<th class="sortable num" data-key="${m}">${m}<span class="sort-arrow">${arrow(m)}</span></th>`).join("")}
+    <th class="sortable num" data-key="total">รวม<span class="sort-arrow">${arrow("total")}</span></th>
   </tr>`;
 
   const body = document.getElementById("retentionBody");
   const empty = document.getElementById("retentionEmpty");
 
-  body.innerHTML = shown.map(c => {
+  body.innerHTML = sorted.map(c => {
     const cells = months.map(m => {
       const v = c.months[m] || 0;
       if (!v) return `<td class="num" style="color:var(--muted);">-</td>`;
@@ -882,7 +906,19 @@ function renderRetention(data) {
     return `<tr><td>${c.name}</td>${cells}<td class="num" style="font-weight:700;">${fmt(c.total)}</td></tr>`;
   }).join("");
 
-  empty.style.display = shown.length ? "none" : "block";
+  empty.style.display = sorted.length ? "none" : "block";
+
+  document.querySelectorAll("#retentionHead th.sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.key;
+      if (retentionSort.key === k) {
+        retentionSort.dir = retentionSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        retentionSort = { key: k, dir: k === "name" ? "asc" : "desc" };
+      }
+      renderRetentionTable();
+    });
+  });
 }
 
 ["fYear", "fMonth", "fSeller", "fDateFrom", "fDateTo"].forEach(id => document.getElementById(id).addEventListener("change", applyFilters));
