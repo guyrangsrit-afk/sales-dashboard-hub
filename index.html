@@ -82,6 +82,9 @@
     display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:var(--panel);
     padding:12px 14px;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);margin-bottom:22px;
   }
+  .filters.hidden{display:none;}
+  #toggleFiltersIcon{transition:transform .15s;}
+  #toggleFiltersIcon.collapsed{transform:rotate(180deg);}
   .field{display:flex;flex-direction:column;gap:4px;}
   .field label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;}
   .filters select, .filters input{
@@ -261,10 +264,16 @@
             <div class="desc">เชื่อมต่อข้อมูลสดจาก Google Sheet แบบเรียลไทม์</div>
           </div>
         </div>
-        <div class="pill loading" id="status"><span class="dot"></span><span id="statusText">กำลังโหลดข้อมูล...</span></div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn" id="btnToggleFilters">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="toggleFiltersIcon"><path d="M18 15l-6-6-6 6"/></svg>
+            <span id="toggleFiltersLabel">ซ่อนตัวกรอง</span>
+          </button>
+          <div class="pill loading" id="status"><span class="dot"></span><span id="statusText">กำลังโหลดข้อมูล...</span></div>
+        </div>
       </div>
 
-      <div class="filters">
+      <div class="filters" id="filtersPanel">
         <div class="field"><label>ปี</label><select id="fYear"><option value="">ทั้งหมด</option></select></div>
         <div class="field"><label>เดือน</label><select id="fMonth"><option value="">ทั้งหมด</option></select></div>
         <div class="field"><label>เซลล์</label><select id="fSeller"><option value="">ทั้งหมด</option></select></div>
@@ -451,6 +460,19 @@ document.getElementById("themeToggle").addEventListener("click", () => {
   applyFilters();
 });
 initTheme();
+
+/* ---------- Filters toggle ---------- */
+function setFiltersVisible(visible) {
+  document.getElementById("filtersPanel").classList.toggle("hidden", !visible);
+  document.getElementById("toggleFiltersIcon").classList.toggle("collapsed", !visible);
+  document.getElementById("toggleFiltersLabel").textContent = visible ? "ซ่อนตัวกรอง" : "แสดงตัวกรอง";
+  localStorage.setItem("filtersHidden", visible ? "0" : "1");
+}
+document.getElementById("btnToggleFilters").addEventListener("click", () => {
+  const currentlyHidden = document.getElementById("filtersPanel").classList.contains("hidden");
+  setFiltersVisible(currentlyHidden);
+});
+setFiltersVisible(localStorage.getItem("filtersHidden") !== "1");
 
 /* ---------- Mobile sidebar ---------- */
 document.getElementById("menuBtn").addEventListener("click", () => {
