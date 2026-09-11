@@ -148,6 +148,12 @@
   .table-wrap table{border:none;}
   .table-wrap .card{border:none;box-shadow:none;padding:0;}
   .empty{color:var(--muted);text-align:center;padding:50px;font-size:13px;}
+  .bar-list{display:flex;flex-direction:column;gap:14px;}
+  .bar-row-top{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:6px;}
+  .bar-row-name{font-weight:600;word-break:break-word;}
+  .bar-row-value{font-weight:700;flex:none;white-space:nowrap;}
+  .bar-track{height:8px;border-radius:4px;background:var(--panel-2);overflow:hidden;}
+  .bar-fill{height:100%;border-radius:4px;}
   .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--primary-soft);color:var(--primary);}
 
   .table-wrap.retention{max-height:560px;}
@@ -346,11 +352,11 @@
       <section class="block grid2">
         <div class="card" id="products">
           <div class="card-head"><h3>สินค้าขายดี Top 10</h3><span class="badge">by ยอดขาย</span></div>
-          <div class="chart-wrap"><canvas id="chartProducts"></canvas></div>
+          <div id="listProducts" class="bar-list"></div>
         </div>
         <div class="card" id="customers">
           <div class="card-head"><h3>ลูกค้า Top 10</h3><span class="badge">by ยอดขาย</span></div>
-          <div class="chart-wrap"><canvas id="chartCustomers"></canvas></div>
+          <div id="listCustomers" class="bar-list"></div>
         </div>
       </section>
 
@@ -642,10 +648,6 @@ function baseOptions(extra = {}) {
   }, extra);
 }
 
-function truncateLabel(s, n = 16) {
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
-}
-
 function renderTrend(data) {
   const byDate = {};
   data.forEach(r => { byDate[r.date] = (byDate[r.date] || 0) + r.sales; });
@@ -687,47 +689,29 @@ function topN(data, key, n = 10) {
   return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, n);
 }
 
-function horizontalBarOptions() {
-  return Object.assign(baseOptions({
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: { title: (items) => items[0].chart.data.fullLabels?.[items[0].dataIndex] ?? items[0].label } }
-    }
-  }), {
-    indexAxis: "y",
-    scales: {
-      x: { ticks: { color: themeColors().tick, maxTicksLimit: 4 }, grid: { color: themeColors().grid } },
-      y: { ticks: { color: themeColors().tick, autoSkip: false }, grid: { display: false } }
-    }
-  });
+function renderBarList(containerId, top, color) {
+  const el = document.getElementById(containerId);
+  if (!top.length) { el.innerHTML = '<div class="empty">ไม่พบข้อมูล</div>'; return; }
+  const max = top[0][1] || 1;
+  el.innerHTML = top.map(([name, value]) => {
+    const pct = Math.max(4, Math.round((value / max) * 100));
+    return `
+      <div class="bar-row">
+        <div class="bar-row-top">
+          <span class="bar-row-name">${name}</span>
+          <span class="bar-row-value">${fmt(value)}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color};"></div></div>
+      </div>`;
+  }).join("");
 }
 
 function renderTopProducts(data) {
-  const top = topN(data, "product");
-  const c = themeColors();
-  upsertChart("chartProducts", {
-    type: "bar",
-    data: {
-      labels: top.map(t => truncateLabel(t[0])),
-      fullLabels: top.map(t => t[0]),
-      datasets: [{ label: "ยอดขาย", data: top.map(t => t[1]), backgroundColor: c.palette[1], borderRadius: 5, maxBarThickness: 18 }]
-    },
-    options: horizontalBarOptions()
-  });
+  renderBarList("listProducts", topN(data, "product"), themeColors().palette[1]);
 }
 
 function renderTopCustomers(data) {
-  const top = topN(data, "customer");
-  const c = themeColors();
-  upsertChart("chartCustomers", {
-    type: "bar",
-    data: {
-      labels: top.map(t => truncateLabel(t[0])),
-      fullLabels: top.map(t => t[0]),
-      datasets: [{ label: "ยอดขาย", data: top.map(t => t[1]), backgroundColor: c.palette[2], borderRadius: 5, maxBarThickness: 18 }]
-    },
-    options: horizontalBarOptions()
-  });
+  renderBarList("listCustomers", topN(data, "customer"), themeColors().palette[2]);
 }
 
 function renderTable(data) {
