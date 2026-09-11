@@ -184,6 +184,15 @@
 
     th,td{padding:9px 10px;font-size:12.5px;}
 
+    .table-wrap.retention{max-height:420px;}
+    .table-wrap.retention table th,
+    .table-wrap.retention table td{padding:8px 7px;font-size:11px;}
+    .table-wrap.retention table th:first-child,
+    .table-wrap.retention table td:first-child{
+      max-width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    }
+    .mobile-hint{display:block !important;}
+
     .bottomnav{
       display:flex;position:fixed;left:0;right:0;bottom:0;z-index:15;
       background:var(--panel);border-top:1px solid var(--border);
@@ -361,6 +370,7 @@
         <div class="card">
           <div class="card-head"><h3>Retention</h3><span class="tag" id="retentionTag">-</span></div>
           <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ยอดซื้อรายเดือนต่อลูกค้า เรียงตามยอดขายสูงสุด · นับตามตัวกรองด้านบน (ใช้ช่องค้นหาลูกค้าเพื่อดูรายอื่นนอก Top 40)</div>
+          <div class="mobile-hint" style="display:none;font-size:11px;color:var(--muted);margin:-8px 0 12px;">← เลื่อนซ้าย-ขวาเพื่อดูเดือนอื่น →</div>
           <div class="table-wrap retention">
             <table>
               <thead id="retentionHead"></thead>
