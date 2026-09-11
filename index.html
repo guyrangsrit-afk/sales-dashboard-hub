@@ -142,6 +142,9 @@
   table{width:100%;border-collapse:collapse;font-size:13px;}
   th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
   th{color:var(--muted);font-weight:700;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0;background:var(--panel);}
+  th.sortable{cursor:pointer;user-select:none;}
+  th.sortable:hover{color:var(--primary);}
+  th.sortable .sort-arrow{display:inline-block;width:10px;margin-left:3px;font-size:9px;color:var(--primary);}
   tbody tr:hover{background:var(--panel-2);}
   td.num, th.num{text-align:right;}
   .table-wrap{max-height:440px;overflow:auto;border-radius:10px;border:1px solid var(--border);}
@@ -371,8 +374,14 @@
           <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ยอดสะสม &gt; 10,000 บาท และไม่ซื้อเกิน 30 วัน (นับในช่วงตามตัวกรองด้านบน)</div>
           <div class="table-wrap" style="max-height:300px;">
             <table>
-              <thead>
-                <tr><th>ลูกค้า</th><th>เซลล์</th><th>ซื้อล่าสุด</th><th class="num">หายไป (วัน)</th><th class="num">ยอดสะสม</th></tr>
+              <thead id="dormantHead">
+                <tr>
+                  <th class="sortable" data-key="name">ลูกค้า<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-key="seller">เซลล์<span class="sort-arrow"></span></th>
+                  <th class="sortable" data-key="lastDate">ซื้อล่าสุด<span class="sort-arrow"></span></th>
+                  <th class="sortable num" data-key="daysSince">หายไป (วัน)<span class="sort-arrow"></span></th>
+                  <th class="sortable num" data-key="totalSpend">ยอดสะสม<span class="sort-arrow"></span></th>
+                </tr>
               </thead>
               <tbody id="dormantBody"></tbody>
             </table>
@@ -779,14 +788,30 @@ function getDormantCustomers(data) {
     .sort((a, b) => b.totalSpend - a.totalSpend);
 }
 
+let dormantFullList = [];
+let dormantSort = { key: "totalSpend", dir: "desc" };
+
 function renderDormantCustomers(data) {
-  const dormant = getDormantCustomers(data);
+  dormantFullList = getDormantCustomers(data);
+  renderDormantTable();
+}
+
+function renderDormantTable() {
+  const { key, dir } = dormantSort;
+  const sorted = dormantFullList.slice().sort((a, b) => {
+    let av = a[key], bv = b[key];
+    if (typeof av === "string") { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+    if (av < bv) return dir === "asc" ? -1 : 1;
+    if (av > bv) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+
   const body = document.getElementById("dormantBody");
   const empty = document.getElementById("dormantEmpty");
 
-  document.getElementById("dormantTag").textContent = `${dormant.length.toLocaleString()} ราย`;
+  document.getElementById("dormantTag").textContent = `${dormantFullList.length.toLocaleString()} ราย`;
 
-  body.innerHTML = dormant.slice(0, 20).map(c => {
+  body.innerHTML = sorted.slice(0, 20).map(c => {
     const riskColor = c.daysSince > 60 ? "var(--rose)" : "var(--amber)";
     return `<tr>
       <td>${c.name}</td>
@@ -796,8 +821,25 @@ function renderDormantCustomers(data) {
       <td class="num">${fmt(c.totalSpend)} บาท</td>
     </tr>`;
   }).join("");
-  empty.style.display = dormant.length ? "none" : "block";
+  empty.style.display = sorted.length ? "none" : "block";
+
+  document.querySelectorAll("#dormantHead th.sortable").forEach(th => {
+    const arrow = th.querySelector(".sort-arrow");
+    arrow.textContent = th.dataset.key === key ? (dir === "asc" ? "▲" : "▼") : "";
+  });
 }
+
+document.querySelectorAll("#dormantHead th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    if (dormantSort.key === key) {
+      dormantSort.dir = dormantSort.dir === "asc" ? "desc" : "asc";
+    } else {
+      dormantSort = { key, dir: (key === "name" || key === "seller" || key === "lastDate") ? "asc" : "desc" };
+    }
+    renderDormantTable();
+  });
+});
 
 function renderRetention(data) {
   const RETENTION_LIMIT = 40;
