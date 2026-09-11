@@ -614,10 +614,14 @@ function baseOptions(extra = {}) {
     responsive: true, maintainAspectRatio: false,
     plugins: { legend: { labels: { color: c.tick, font: { family: "Inter, Noto Sans Thai" } } } },
     scales: {
-      x: { ticks: { color: c.tick }, grid: { color: c.grid } },
+      x: { ticks: { color: c.tick, maxTicksLimit: 5 }, grid: { color: c.grid } },
       y: { ticks: { color: c.tick }, grid: { color: c.grid } }
     }
   }, extra);
+}
+
+function truncateLabel(s, n = 16) {
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
 function renderTrend(data) {
@@ -661,13 +665,32 @@ function topN(data, key, n = 10) {
   return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, n);
 }
 
+function horizontalBarOptions() {
+  return Object.assign(baseOptions({
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { title: (items) => items[0].chart.data.fullLabels?.[items[0].dataIndex] ?? items[0].label } }
+    }
+  }), {
+    indexAxis: "y",
+    scales: {
+      x: { ticks: { color: themeColors().tick, maxTicksLimit: 4 }, grid: { color: themeColors().grid } },
+      y: { ticks: { color: themeColors().tick, autoSkip: false }, grid: { display: false } }
+    }
+  });
+}
+
 function renderTopProducts(data) {
   const top = topN(data, "product");
   const c = themeColors();
   upsertChart("chartProducts", {
     type: "bar",
-    data: { labels: top.map(t => t[0]), datasets: [{ label: "ยอดขาย", data: top.map(t => t[1]), backgroundColor: c.palette[1], borderRadius: 5, maxBarThickness: 18 }] },
-    options: Object.assign(baseOptions({ plugins: { legend: { display: false } } }), { indexAxis: "y" })
+    data: {
+      labels: top.map(t => truncateLabel(t[0])),
+      fullLabels: top.map(t => t[0]),
+      datasets: [{ label: "ยอดขาย", data: top.map(t => t[1]), backgroundColor: c.palette[1], borderRadius: 5, maxBarThickness: 18 }]
+    },
+    options: horizontalBarOptions()
   });
 }
 
@@ -676,8 +699,12 @@ function renderTopCustomers(data) {
   const c = themeColors();
   upsertChart("chartCustomers", {
     type: "bar",
-    data: { labels: top.map(t => t[0]), datasets: [{ label: "ยอดขาย", data: top.map(t => t[1]), backgroundColor: c.palette[2], borderRadius: 5, maxBarThickness: 18 }] },
-    options: Object.assign(baseOptions({ plugins: { legend: { display: false } } }), { indexAxis: "y" })
+    data: {
+      labels: top.map(t => truncateLabel(t[0])),
+      fullLabels: top.map(t => t[0]),
+      datasets: [{ label: "ยอดขาย", data: top.map(t => t[1]), backgroundColor: c.palette[2], borderRadius: 5, maxBarThickness: 18 }]
+    },
+    options: horizontalBarOptions()
   });
 }
 
