@@ -404,6 +404,8 @@
           <div class="card-head"><h3>Retention</h3><span class="tag" id="retentionTag">-</span></div>
           <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ยอดซื้อรายเดือนต่อลูกค้า แสดงทุกราย เรียงตามยอดขายสูงสุด · นับตามตัวกรองด้านบน</div>
           <div class="mobile-hint" style="display:none;font-size:11px;color:var(--muted);margin:-8px 0 12px;">← เลื่อนซ้าย-ขวาเพื่อดูเดือนอื่น →</div>
+          <input type="text" id="retentionSearch" placeholder="ค้นหาลูกค้าใน Retention..." style="width:100%;box-sizing:border-box;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13px;font-family:inherit;margin-bottom:12px;">
+          <div class="tag" id="retentionSearchTag" style="display:none;margin-bottom:10px;">-</div>
           <div class="table-wrap retention">
             <table>
               <thead id="retentionHead"></thead>
@@ -930,7 +932,10 @@ function renderRetentionTable() {
   const { key, dir } = retentionSort;
   const maxCell = Math.max(1, ...retentionShown.flatMap(c => months.map(m => c.months[m] || 0)));
 
-  const sorted = retentionShown.slice().sort((a, b) => {
+  const query = document.getElementById("retentionSearch").value.trim().toLowerCase();
+  const filtered = query ? retentionShown.filter(c => c.name.toLowerCase().includes(query)) : retentionShown;
+
+  const sorted = filtered.slice().sort((a, b) => {
     const av = key === "name" ? a.name.toLowerCase() : (key === "total" ? a.total : (a.months[key] || 0));
     const bv = key === "name" ? b.name.toLowerCase() : (key === "total" ? b.total : (b.months[key] || 0));
     if (av < bv) return dir === "asc" ? -1 : 1;
@@ -939,6 +944,13 @@ function renderRetentionTable() {
   });
 
   document.getElementById("retentionTag").textContent = `${retentionTotalCount.toLocaleString()} ลูกค้า`;
+  const searchTag = document.getElementById("retentionSearchTag");
+  if (query) {
+    searchTag.style.display = "inline-block";
+    searchTag.textContent = `พบ ${sorted.length.toLocaleString()} ราย`;
+  } else {
+    searchTag.style.display = "none";
+  }
 
   const arrow = (k) => k === key ? (dir === "asc" ? "▲" : "▼") : "";
   document.getElementById("retentionHead").innerHTML = `<tr>
@@ -988,6 +1000,8 @@ function renderRetentionTable() {
     });
   });
 }
+
+document.getElementById("retentionSearch").addEventListener("input", renderRetentionTable);
 
 ["fYear", "fMonth", "fSeller", "fDateFrom", "fDateTo"].forEach(id => document.getElementById(id).addEventListener("change", applyFilters));
 document.getElementById("fSearch").addEventListener("input", applyFilters);
