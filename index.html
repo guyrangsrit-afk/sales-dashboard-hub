@@ -368,6 +368,11 @@
           <div class="card-head"><h3>ลูกค้าใหม่ต่อเดือน</h3><span class="tag" id="newCustTag">-</span></div>
           <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">นับตามตัวกรองด้านบน</div>
           <div class="chart-wrap"><canvas id="chartNewCustomers"></canvas></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 8px;">
+            <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;">รายชื่อลูกค้าใหม่</label>
+            <select id="newCustMonthSelect" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:6px 8px;font-size:12.5px;font-family:inherit;"></select>
+          </div>
+          <div id="newCustList" style="max-height:220px;overflow-y:auto;"></div>
         </div>
         <div class="card">
           <div class="card-head"><h3>ลูกค้าที่เงียบไป</h3><span class="tag" id="dormantTag">-</span></div>
@@ -742,17 +747,33 @@ function getNewCustomersByMonth(data) {
     if (!r.date) return;
     const key = r.memberId || r.customer;
     const ym = r.date.slice(0, 7);
-    if (!firstMonth[key] || ym < firstMonth[key]) firstMonth[key] = ym;
+    if (!firstMonth[key] || ym < firstMonth[key].ym) firstMonth[key] = { ym, name: r.customer, amount: 0 };
   });
+  data.forEach(r => {
+    if (!r.date) return;
+    const key = r.memberId || r.customer;
+    const ym = r.date.slice(0, 7);
+    if (firstMonth[key] && firstMonth[key].ym === ym) firstMonth[key].amount += r.sales;
+  });
+
   const counts = {};
-  Object.values(firstMonth).forEach(ym => { counts[ym] = (counts[ym] || 0) + 1; });
+  const byMonth = {};
+  Object.values(firstMonth).forEach(f => {
+    counts[f.ym] = (counts[f.ym] || 0) + 1;
+    (byMonth[f.ym] = byMonth[f.ym] || []).push(f);
+  });
+  Object.values(byMonth).forEach(list => list.sort((a, b) => b.amount - a.amount));
+
   const months = Object.keys(counts).sort();
-  return { months, counts };
+  return { months, counts, byMonth };
 }
 
+let newCustByMonth = {};
+
 function renderNewCustomers(data) {
-  const { months, counts } = getNewCustomersByMonth(data);
+  const { months, counts, byMonth } = getNewCustomersByMonth(data);
   const c = themeColors();
+  newCustByMonth = byMonth;
 
   document.getElementById("newCustTag").textContent = months.length ? `${months[0]} → ${months[months.length - 1]}` : "-";
 
@@ -764,7 +785,27 @@ function renderNewCustomers(data) {
     }] },
     options: baseOptions({ plugins: { legend: { display: false } } })
   });
+
+  const sel = document.getElementById("newCustMonthSelect");
+  const prevChoice = sel.value;
+  sel.innerHTML = months.map(m => `<option value="${m}">${m} (${counts[m]} ราย)</option>`).join("");
+  sel.value = months.includes(prevChoice) ? prevChoice : (months[months.length - 1] || "");
+  renderNewCustList(sel.value);
 }
+
+function renderNewCustList(month) {
+  const list = newCustByMonth[month] || [];
+  const el = document.getElementById("newCustList");
+  el.innerHTML = list.length
+    ? list.map(c => `
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
+          <span>${c.name}</span>
+          <span style="font-weight:700;flex:none;">${fmt(c.amount)} บาท</span>
+        </div>`).join("")
+    : `<div class="empty" style="padding:16px;">ไม่มีลูกค้าใหม่เดือนนี้</div>`;
+}
+
+document.getElementById("newCustMonthSelect").addEventListener("change", (e) => renderNewCustList(e.target.value));
 
 function getDormantCustomers(data) {
   if (!data.length) return [];
