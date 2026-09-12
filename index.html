@@ -372,6 +372,10 @@
             <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;">รายชื่อลูกค้าใหม่</label>
             <select id="newCustMonthSelect" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:6px 8px;font-size:12.5px;font-family:inherit;"></select>
           </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:2px solid var(--border);font-size:13px;font-weight:700;">
+            <span>รวม</span>
+            <span id="newCustListTotal" style="color:var(--primary);">-</span>
+          </div>
           <div id="newCustList" style="max-height:220px;overflow-y:auto;"></div>
         </div>
         <div class="card">
@@ -796,6 +800,8 @@ function renderNewCustomers(data) {
 function renderNewCustList(month) {
   const list = newCustByMonth[month] || [];
   const el = document.getElementById("newCustList");
+  const total = list.reduce((s, c) => s + c.amount, 0);
+  document.getElementById("newCustListTotal").textContent = fmt(total) + " บาท";
   el.innerHTML = list.length
     ? list.map(c => `
         <div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;">
