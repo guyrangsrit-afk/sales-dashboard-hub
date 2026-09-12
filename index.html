@@ -845,6 +845,8 @@ let retentionMonths = [];
 let retentionShown = [];
 let retentionTotalCount = 0;
 let retentionMonthlyCounts = {};
+let retentionMonthlyTotals = {};
+let retentionGrandTotal = 0;
 let retentionSort = { key: "total", dir: "desc" };
 
 function renderRetention(data) {
@@ -867,9 +869,12 @@ function renderRetention(data) {
   retentionShown = customers.slice(0, RETENTION_LIMIT);
   retentionTotalCount = customers.length;
   retentionMonthlyCounts = {};
+  retentionMonthlyTotals = {};
   retentionMonths.forEach(m => {
     retentionMonthlyCounts[m] = customers.filter(c => (c.months[m] || 0) > 0).length;
+    retentionMonthlyTotals[m] = customers.reduce((s, c) => s + (c.months[m] || 0), 0);
   });
+  retentionGrandTotal = customers.reduce((s, c) => s + c.total, 0);
 
   renderRetentionTable();
 }
@@ -905,7 +910,13 @@ function renderRetentionTable() {
     <td class="num" style="font-weight:700;color:var(--muted);">${retentionTotalCount.toLocaleString()} ราย</td>
   </tr>`;
 
-  body.innerHTML = countRow + sorted.map(c => {
+  const totalRow = `<tr style="background:var(--panel-2);border-bottom:2px solid var(--border);">
+    <td style="font-weight:700;background:var(--panel-2);">ยอดขายรวม</td>
+    ${months.map(m => `<td class="num" style="font-weight:700;color:var(--primary);">${fmt(retentionMonthlyTotals[m] || 0)}</td>`).join("")}
+    <td class="num" style="font-weight:700;color:var(--primary);">${fmt(retentionGrandTotal)}</td>
+  </tr>`;
+
+  body.innerHTML = countRow + totalRow + sorted.map(c => {
     const cells = months.map(m => {
       const v = c.months[m] || 0;
       if (!v) return `<td class="num" style="color:var(--muted);">-</td>`;
