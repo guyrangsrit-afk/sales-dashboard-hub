@@ -349,6 +349,14 @@
             <div class="label">ลูกค้าที่ซื้อ</div>
             <div class="value" id="kpiCustomers">-</div>
           </div>
+          <div class="kpi">
+            <div class="kpi-top">
+              <div class="icon" id="kpiConcentrationIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v10l7 7"/><circle cx="12" cy="12" r="10"/></svg></div>
+            </div>
+            <div class="label">กระจุกตัวลูกค้า (Top 5)</div>
+            <div class="value" id="kpiConcentration">-</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="kpiConcentrationSub">-</div>
+          </div>
         </div>
 
         <div class="grid">
@@ -360,6 +368,29 @@
             <div class="card-head"><h3>ยอดขายตามเซลล์</h3></div>
             <div class="chart-wrap"><canvas id="chartSeller"></canvas></div>
           </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <div class="card">
+          <div class="card-head"><h3>ผลงานเซลล์รายคน</h3><span class="tag" id="sellerTag">-</span></div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">เทียบยอดขายรายเดือนต่อเซลล์ · MoM% เทียบเดือนล่าสุดกับเดือนก่อนหน้า · นับตามตัวกรองด้านบน</div>
+          <div class="mobile-hint" style="display:none;font-size:11px;color:var(--muted);margin:-8px 0 12px;">← เลื่อนซ้าย-ขวาเพื่อดูเดือนอื่น →</div>
+          <div class="table-wrap zone" style="max-height:340px;">
+            <table>
+              <thead id="sellerHead"></thead>
+              <tbody id="sellerBody"></tbody>
+            </table>
+            <div class="empty" id="sellerEmpty" style="display:none">ไม่พบข้อมูล</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <div class="card">
+          <div class="card-head"><h3 id="sellerDetailTitle">ลูกค้าของเซลล์</h3><span class="tag" id="sellerDetailTag">-</span></div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">คลิกแถวเซลล์ด้านบนเพื่อดูรายชื่อลูกค้า</div>
+          <div id="sellerDetailList" style="max-height:300px;overflow-y:auto;"></div>
         </div>
       </section>
 
@@ -704,6 +735,7 @@ function applyFilters() {
   renderDormantCustomers(data);
   renderRetention(data);
   renderZone(data);
+  renderSellers(data);
 }
 
 function renderKPIs(data) {
@@ -717,6 +749,28 @@ function renderKPIs(data) {
   document.getElementById("kpiQty").textContent = fmt(totalQty);
   document.getElementById("kpiDiscount").textContent = fmt(totalDiscount) + " บาท";
   document.getElementById("kpiCustomers").textContent = customers.size.toLocaleString();
+
+  const byCustomer = {};
+  data.forEach(r => {
+    const key = r.memberId || r.customer;
+    byCustomer[key] = (byCustomer[key] || 0) + r.sales;
+  });
+  const sortedCust = Object.values(byCustomer).sort((a, b) => b - a);
+  const top5Sum = sortedCust.slice(0, 5).reduce((s, v) => s + v, 0);
+  const top10Sum = sortedCust.slice(0, 10).reduce((s, v) => s + v, 0);
+  const top5Pct = totalSales ? (top5Sum / totalSales * 100) : 0;
+  const top10Pct = totalSales ? (top10Sum / totalSales * 100) : 0;
+
+  document.getElementById("kpiConcentration").textContent = top5Pct.toFixed(1) + "%";
+  document.getElementById("kpiConcentrationSub").textContent = `Top 10: ${top10Pct.toFixed(1)}%`;
+
+  let riskColor = "var(--teal)";
+  if (top5Pct >= 40) riskColor = "var(--rose)";
+  else if (top5Pct >= 25) riskColor = "var(--amber)";
+  const iconEl = document.getElementById("kpiConcentrationIcon");
+  iconEl.style.background = `color-mix(in srgb, ${riskColor} 16%, transparent)`;
+  iconEl.style.color = riskColor;
+  document.getElementById("kpiConcentration").style.color = riskColor;
 }
 
 function upsertChart(id, config) {
@@ -1255,6 +1309,167 @@ function renderZoneDetail() {
       <div style="min-width:0;">
         <div style="font-weight:600;">${c.name}</div>
         <div style="font-size:11px;color:var(--muted);">เซลล์ ${c.seller || '-'} · ${c.orders} รายการ</div>
+      </div>
+      <div style="font-weight:700;flex:none;">${fmt(c.sales)} บาท</div>
+    </div>`).join("");
+}
+
+let sellerSort = { key: "totalSales", dir: "desc" };
+let selectedSeller = null;
+let sellerStatsCache = [];
+let sellerMonths = [];
+
+function computeSellerStats(data) {
+  const monthsSet = new Set();
+  const sellerMap = {};
+
+  data.forEach(r => {
+    const seller = r.seller || "ไม่ระบุ";
+    if (!sellerMap[seller]) sellerMap[seller] = { seller, monthly: {}, orders: 0, totalSales: 0, customers: {} };
+    const s = sellerMap[seller];
+    s.orders += 1;
+    s.totalSales += r.sales;
+
+    if (r.date) {
+      const ym = r.date.slice(0, 7);
+      monthsSet.add(ym);
+      s.monthly[ym] = (s.monthly[ym] || 0) + r.sales;
+    }
+
+    const key = r.memberId || r.customer;
+    if (!s.customers[key]) s.customers[key] = { name: r.customer, sales: 0, orders: 0 };
+    s.customers[key].sales += r.sales;
+    s.customers[key].orders += 1;
+  });
+
+  const months = [...monthsSet].sort();
+  const lastM = months[months.length - 1];
+  const prevM = months[months.length - 2];
+
+  const sellers = Object.values(sellerMap).map(s => {
+    const lastVal = lastM ? (s.monthly[lastM] || 0) : 0;
+    const prevVal = prevM ? (s.monthly[prevM] || 0) : null;
+    const momPct = (prevVal != null && prevVal > 0) ? ((lastVal - prevVal) / prevVal * 100) : null;
+    return {
+      seller: s.seller, monthly: s.monthly, totalSales: s.totalSales, orders: s.orders,
+      customerCount: Object.keys(s.customers).length,
+      avgOrder: s.orders ? s.totalSales / s.orders : 0,
+      customers: Object.values(s.customers).sort((a, b) => b.sales - a.sales),
+      momPct
+    };
+  });
+
+  return { sellers, months };
+}
+
+function renderSellers(data) {
+  const { sellers, months } = computeSellerStats(data);
+  sellerStatsCache = sellers;
+  sellerMonths = months;
+  renderSellerTable();
+}
+
+function renderSellerTable() {
+  const { key, dir } = sellerSort;
+  const months = sellerMonths;
+  const maxCell = Math.max(1, ...sellerStatsCache.flatMap(s => months.map(m => s.monthly[m] || 0)));
+
+  const sortVal = (s) => {
+    if (key === "seller") return s.seller.toLowerCase();
+    if (key === "momPct") return s.momPct == null ? -Infinity : s.momPct;
+    if (months.includes(key)) return s.monthly[key] || 0;
+    return s[key];
+  };
+
+  const sorted = sellerStatsCache.slice().sort((a, b) => {
+    const av = sortVal(a), bv = sortVal(b);
+    if (av < bv) return dir === "asc" ? -1 : 1;
+    if (av > bv) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  document.getElementById("sellerTag").textContent = `${sellerStatsCache.length.toLocaleString()} เซลล์`;
+
+  const arrow = (k) => k === key ? (dir === "asc" ? "▲" : "▼") : "";
+  document.getElementById("sellerHead").innerHTML = `<tr>
+    <th class="sortable" data-key="seller">เซลล์<span class="sort-arrow">${arrow("seller")}</span></th>
+    <th class="sortable num" data-key="customerCount">จำนวนลูกค้า<span class="sort-arrow">${arrow("customerCount")}</span></th>
+    <th class="sortable num" data-key="orders">ออเดอร์<span class="sort-arrow">${arrow("orders")}</span></th>
+    <th class="sortable num" data-key="avgOrder">เฉลี่ย/ออเดอร์<span class="sort-arrow">${arrow("avgOrder")}</span></th>
+    ${months.map(m => `<th class="sortable num" data-key="${m}">${m}<span class="sort-arrow">${arrow(m)}</span></th>`).join("")}
+    <th class="sortable num" data-key="totalSales">รวม<span class="sort-arrow">${arrow("totalSales")}</span></th>
+    <th class="sortable num" data-key="momPct">MoM%<span class="sort-arrow">${arrow("momPct")}</span></th>
+  </tr>`;
+
+  const body = document.getElementById("sellerBody");
+  const empty = document.getElementById("sellerEmpty");
+
+  body.innerHTML = sorted.map(s => {
+    const selected = selectedSeller === s.seller;
+    const monthCells = months.map(m => {
+      const v = s.monthly[m] || 0;
+      if (!v) return `<td class="num" style="color:var(--muted);">-</td>`;
+      const intensity = Math.min(1, v / maxCell);
+      const bg = `color-mix(in srgb, var(--primary) ${Math.round(intensity * 70 + 10)}%, var(--panel))`;
+      const textColor = intensity > 0.45 ? "#fff" : "var(--text)";
+      return `<td class="num" style="background:${bg};color:${textColor};font-weight:600;">${fmt(v)}</td>`;
+    }).join("");
+    const momText = s.momPct == null ? "-" : `${s.momPct >= 0 ? "▲" : "▼"} ${Math.abs(s.momPct).toFixed(1)}%`;
+    const momColor = s.momPct == null ? "var(--muted)" : (s.momPct >= 0 ? "var(--teal)" : "var(--rose)");
+    return `<tr data-seller="${s.seller}" style="cursor:pointer;${selected ? 'background:var(--primary-soft);' : ''}">
+      <td style="font-weight:600;">${s.seller}</td>
+      <td class="num">${s.customerCount.toLocaleString()}</td>
+      <td class="num">${s.orders.toLocaleString()}</td>
+      <td class="num" style="color:var(--muted);">${fmt(s.avgOrder)}</td>
+      ${monthCells}
+      <td class="num" style="font-weight:700;">${fmt(s.totalSales)}</td>
+      <td class="num" style="font-weight:700;color:${momColor};">${momText}</td>
+    </tr>`;
+  }).join("");
+
+  empty.style.display = sorted.length ? "none" : "block";
+
+  document.querySelectorAll("#sellerHead th.sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.key;
+      if (sellerSort.key === k) sellerSort.dir = sellerSort.dir === "asc" ? "desc" : "asc";
+      else sellerSort = { key: k, dir: k === "seller" ? "asc" : "desc" };
+      renderSellerTable();
+    });
+  });
+
+  document.querySelectorAll("#sellerBody tr[data-seller]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      selectedSeller = tr.dataset.seller;
+      renderSellerTable();
+      renderSellerDetail();
+    });
+  });
+
+  if (selectedSeller) renderSellerDetail();
+}
+
+function renderSellerDetail() {
+  const s = sellerStatsCache.find(ss => ss.seller === selectedSeller);
+  const title = document.getElementById("sellerDetailTitle");
+  const tag = document.getElementById("sellerDetailTag");
+  const list = document.getElementById("sellerDetailList");
+
+  if (!s) {
+    title.textContent = "ลูกค้าของเซลล์";
+    tag.textContent = "-";
+    list.innerHTML = `<div class="empty" style="padding:16px;">คลิกแถวเซลล์ด้านบนเพื่อดูรายชื่อลูกค้า</div>`;
+    return;
+  }
+
+  title.textContent = `ลูกค้าของเซลล์ — ${s.seller}`;
+  tag.textContent = `${s.customerCount.toLocaleString()} ราย`;
+
+  list.innerHTML = s.customers.map(c => `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <div style="min-width:0;">
+        <div style="font-weight:600;">${c.name}</div>
+        <div style="font-size:11px;color:var(--muted);">${c.orders} รายการ</div>
       </div>
       <div style="font-weight:700;flex:none;">${fmt(c.sales)} บาท</div>
     </div>`).join("");
