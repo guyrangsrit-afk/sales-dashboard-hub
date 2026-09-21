@@ -461,9 +461,14 @@
       <section class="block" id="zone">
         <div class="card">
           <div class="card-head"><h3>Zone</h3><span class="tag" id="zoneTag">-</span></div>
-          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ลูกค้าแบ่งตามโซน (เชียงใหม่ / ลำพูน) · จำนวนลูกค้านับจากทั้งหมด ยอดขายแยกรายเดือนตามตัวกรองด้านบน</div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ลูกค้าแบ่งตามโซน (เชียงใหม่ / ลำพูน) · จำนวนลูกค้านับจากทั้งหมด ยอดขายนับตามตัวกรองด้านบนและเดือนที่เลือก</div>
           <div class="mobile-hint" style="display:none;font-size:11px;color:var(--muted);margin:-8px 0 12px;">← เลื่อนซ้าย-ขวาเพื่อดูเดือนอื่น →</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="zoneProvinceChips"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;" id="zoneProvinceChips"></div>
+            <select id="zoneMonthSelect" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:12.5px;font-family:inherit;">
+              <option value="all">ทุกเดือน</option>
+            </select>
+          </div>
           <div class="table-wrap zone" style="max-height:400px;">
             <table>
               <thead id="zoneHead"></thead>
@@ -1135,6 +1140,7 @@ function renderRetentionTable() {
 document.getElementById("retentionSearch").addEventListener("input", renderRetentionTable);
 
 let zoneProvinceFilter = "all";
+let zoneMonthFilter = "all";
 let zoneSort = { key: "totalSales", dir: "desc" };
 let selectedZone = null;
 let zoneStatsCache = [];
@@ -1182,12 +1188,26 @@ function computeZoneStats(data) {
 
 function renderZone(data) {
   if (!customerMaster.length) return;
-  const { zones, months } = computeZoneStats(data);
+
+  const availableMonths = [...new Set(data.filter(r => r.date).map(r => r.date.slice(0, 7)))].sort();
+  const sel = document.getElementById("zoneMonthSelect");
+  const prevChoice = sel.value || zoneMonthFilter;
+  sel.innerHTML = '<option value="all">ทุกเดือน</option>' + availableMonths.map(m => `<option value="${m}">${m}</option>`).join("");
+  zoneMonthFilter = (prevChoice === "all" || availableMonths.includes(prevChoice)) ? prevChoice : "all";
+  sel.value = zoneMonthFilter;
+
+  const scopedData = zoneMonthFilter === "all" ? data : data.filter(r => r.date && r.date.slice(0, 7) === zoneMonthFilter);
+  const { zones, months } = computeZoneStats(scopedData);
   zoneStatsCache = zones;
   zoneMonths = months;
   renderZoneChips();
   renderZoneTable();
 }
+
+document.getElementById("zoneMonthSelect").addEventListener("change", (e) => {
+  zoneMonthFilter = e.target.value;
+  renderZone(lastFilteredData);
+});
 
 function renderZoneChips() {
   const provinces = ["all", ...new Set(customerMaster.map(c => c.province))];
