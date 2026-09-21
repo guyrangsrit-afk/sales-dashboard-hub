@@ -248,6 +248,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
         Retention
       </a>
+      <a href="#zone" data-target="zone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        Zone
+      </a>
       <a href="#transactions" data-target="transactions">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
         รายการขาย
@@ -416,6 +420,29 @@
         </div>
       </section>
 
+      <section class="block" id="zone">
+        <div class="card">
+          <div class="card-head"><h3>Zone</h3><span class="tag" id="zoneTag">-</span></div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ลูกค้าแบ่งตามโซน (เชียงใหม่ / ลำพูน) · จำนวนลูกค้านับจากทั้งหมด ยอดขายนับตามตัวกรองด้านบน</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="zoneProvinceChips"></div>
+          <div class="table-wrap" style="max-height:360px;">
+            <table>
+              <thead id="zoneHead"></thead>
+              <tbody id="zoneBody"></tbody>
+            </table>
+            <div class="empty" id="zoneEmpty" style="display:none">กำลังโหลดข้อมูลโซน...</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block">
+        <div class="card">
+          <div class="card-head"><h3 id="zoneDetailTitle">รายชื่อลูกค้าในโซน</h3><span class="tag" id="zoneDetailTag">-</span></div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">คลิกแถวโซนด้านบนเพื่อดูรายชื่อลูกค้า</div>
+          <div id="zoneDetailList" style="max-height:320px;overflow-y:auto;"></div>
+        </div>
+      </section>
+
       <section class="block" id="transactions">
         <div class="card">
           <div class="card-head"><h3>รายการล่าสุด</h3><span class="tag" id="tblCount">-</span></div>
@@ -454,6 +481,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
     Retention
   </a>
+  <a href="#zone" data-target="zone">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+    Zone
+  </a>
   <a href="#transactions" data-target="transactions">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
     รายการ
@@ -465,7 +496,12 @@ const SHEET_ID = "18CUGv_qoHu0uXXhu-fQzrpH_jFxUeoG311Us4C9dXWU";
 const SHEET_NAME = "Data";
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}&t=${Date.now()}`;
 
+const CUSTOMER_SHEET_ID = "1qvA_uUoOmbLByWnZf1J2m9kCGtsIh3_P5eRMzZwcucA";
+const CUSTOMER_GID = "666808356";
+const CUSTOMER_CSV_URL = `https://docs.google.com/spreadsheets/d/${CUSTOMER_SHEET_ID}/gviz/tq?tqx=out:csv&gid=${CUSTOMER_GID}&t=${Date.now()}`;
+
 let allRows = [];
+let customerMaster = [];
 let charts = {};
 
 /* ---------- Theme ---------- */
@@ -581,6 +617,35 @@ async function loadData() {
   }
 }
 
+async function loadCustomerMaster() {
+  try {
+    const res = await fetch(CUSTOMER_CSV_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const text = await res.text();
+    const rows = parseCSV(text);
+    const header = rows[0].map(h => h.trim());
+    const idx = name => header.indexOf(name);
+
+    const iId = idx("รหัสลูกค้า"), iName = idx("ชื่อลูกค้า"), iSeller = idx("เซลล์"),
+          iGroup = idx("กลุ่ม/ประเภทลูกค้า"), iZone = idx("โซน/เขตพื้นที่ลูกค้า");
+
+    customerMaster = rows.slice(1).map(r => {
+      const zone = (r[iZone] || "").trim();
+      const [province, district] = zone.includes(" - ") ? zone.split(" - ") : [zone, ""];
+      return {
+        id: r[iId], name: r[iName], seller: r[iSeller], group: r[iGroup],
+        zone, province: province || "ไม่ระบุ", district: district || "ไม่ระบุ"
+      };
+    }).filter(c => c.id);
+
+    if (allRows.length) renderZone(lastFilteredData);
+  } catch (err) {
+    console.error("โหลดข้อมูลลูกค้า/โซนไม่สำเร็จ:", err);
+    document.getElementById("zoneEmpty").textContent = "โหลดข้อมูลโซนไม่สำเร็จ: " + err.message;
+    document.getElementById("zoneEmpty").style.display = "block";
+  }
+}
+
 function populateFilters() {
   const years = [...new Set(allRows.map(r => r.year))].filter(Boolean).sort();
   const months = [...new Set(allRows.map(r => r.month))].filter(Boolean).sort((a,b)=>+a-+b);
@@ -616,8 +681,11 @@ function getFiltered() {
   );
 }
 
+let lastFilteredData = [];
+
 function applyFilters() {
   const data = getFiltered();
+  lastFilteredData = data;
   renderKPIs(data);
   renderTrend(data);
   renderSeller(data);
@@ -627,6 +695,7 @@ function applyFilters() {
   renderNewCustomers(data);
   renderDormantCustomers(data);
   renderRetention(data);
+  renderZone(data);
 }
 
 function renderKPIs(data) {
@@ -1003,6 +1072,147 @@ function renderRetentionTable() {
 
 document.getElementById("retentionSearch").addEventListener("input", renderRetentionTable);
 
+let zoneProvinceFilter = "all";
+let zoneSort = { key: "totalSales", dir: "desc" };
+let selectedZone = null;
+let zoneStatsCache = [];
+
+function computeZoneStats(data) {
+  const totalsByMember = {};
+  data.forEach(r => {
+    if (!r.memberId) return;
+    if (!totalsByMember[r.memberId]) totalsByMember[r.memberId] = { sales: 0, orders: 0 };
+    totalsByMember[r.memberId].sales += r.sales;
+    totalsByMember[r.memberId].orders += 1;
+  });
+
+  const zoneMap = {};
+  customerMaster.forEach(c => {
+    if (!zoneMap[c.zone]) zoneMap[c.zone] = { zone: c.zone, province: c.province, district: c.district, customers: [] };
+    const t = totalsByMember[c.id] || { sales: 0, orders: 0 };
+    zoneMap[c.zone].customers.push({ name: c.name, seller: c.seller, sales: t.sales, orders: t.orders });
+  });
+
+  return Object.values(zoneMap).map(z => ({
+    ...z,
+    customerCount: z.customers.length,
+    totalSales: z.customers.reduce((s, c) => s + c.sales, 0)
+  }));
+}
+
+function renderZone(data) {
+  if (!customerMaster.length) return;
+  zoneStatsCache = computeZoneStats(data);
+  renderZoneChips();
+  renderZoneTable();
+}
+
+function renderZoneChips() {
+  const provinces = ["all", ...new Set(customerMaster.map(c => c.province))];
+  const el = document.getElementById("zoneProvinceChips");
+  const labelFor = (p) => p === "all" ? "ทั้งหมด" : p;
+  el.innerHTML = provinces.map(p => {
+    const active = zoneProvinceFilter === p;
+    return `<button class="btn${active ? ' primary' : ''}" data-province="${p}" style="padding:7px 14px;">${labelFor(p)}</button>`;
+  }).join("");
+  el.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      zoneProvinceFilter = btn.dataset.province;
+      renderZoneChips();
+      renderZoneTable();
+    });
+  });
+}
+
+function renderZoneTable() {
+  const { key, dir } = zoneSort;
+  const rows = zoneProvinceFilter === "all" ? zoneStatsCache : zoneStatsCache.filter(z => z.province === zoneProvinceFilter);
+
+  const sorted = rows.slice().sort((a, b) => {
+    const av = key === "district" ? a.district.toLowerCase() : (key === "province" ? a.province.toLowerCase() : a[key]);
+    const bv = key === "district" ? b.district.toLowerCase() : (key === "province" ? b.province.toLowerCase() : b[key]);
+    if (av < bv) return dir === "asc" ? -1 : 1;
+    if (av > bv) return dir === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const totalCustomers = rows.reduce((s, z) => s + z.customerCount, 0);
+  document.getElementById("zoneTag").textContent = `${rows.length} โซน · ${totalCustomers.toLocaleString()} ลูกค้า`;
+
+  const arrow = (k) => k === key ? (dir === "asc" ? "▲" : "▼") : "";
+  document.getElementById("zoneHead").innerHTML = `<tr>
+    <th class="sortable" data-key="district">โซน<span class="sort-arrow">${arrow("district")}</span></th>
+    <th class="sortable" data-key="province">จังหวัด<span class="sort-arrow">${arrow("province")}</span></th>
+    <th class="sortable num" data-key="customerCount">จำนวนลูกค้า<span class="sort-arrow">${arrow("customerCount")}</span></th>
+    <th class="sortable num" data-key="totalSales">ยอดขายรวม<span class="sort-arrow">${arrow("totalSales")}</span></th>
+    <th class="num">เฉลี่ย/ราย</th>
+  </tr>`;
+
+  const body = document.getElementById("zoneBody");
+  const empty = document.getElementById("zoneEmpty");
+
+  body.innerHTML = sorted.map(z => {
+    const avg = z.customerCount ? z.totalSales / z.customerCount : 0;
+    const selected = selectedZone === z.zone;
+    return `<tr data-zone="${z.zone}" style="cursor:pointer;${selected ? 'background:var(--primary-soft);' : ''}">
+      <td style="font-weight:600;">${z.district}</td>
+      <td style="color:var(--muted);">${z.province}</td>
+      <td class="num">${z.customerCount.toLocaleString()}</td>
+      <td class="num" style="font-weight:700;">${fmt(z.totalSales)} บาท</td>
+      <td class="num" style="color:var(--muted);">${fmt(avg)} บาท</td>
+    </tr>`;
+  }).join("");
+
+  empty.style.display = sorted.length ? "none" : "block";
+  if (!sorted.length) empty.textContent = "ไม่พบโซนตามตัวกรองนี้";
+
+  document.querySelectorAll("#zoneHead th.sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.key;
+      if (zoneSort.key === k) zoneSort.dir = zoneSort.dir === "asc" ? "desc" : "asc";
+      else zoneSort = { key: k, dir: (k === "district" || k === "province") ? "asc" : "desc" };
+      renderZoneTable();
+    });
+  });
+
+  document.querySelectorAll("#zoneBody tr[data-zone]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      selectedZone = tr.dataset.zone;
+      renderZoneTable();
+      renderZoneDetail();
+    });
+  });
+
+  if (selectedZone) renderZoneDetail();
+}
+
+function renderZoneDetail() {
+  const z = zoneStatsCache.find(zz => zz.zone === selectedZone);
+  const title = document.getElementById("zoneDetailTitle");
+  const tag = document.getElementById("zoneDetailTag");
+  const list = document.getElementById("zoneDetailList");
+
+  if (!z) {
+    title.textContent = "รายชื่อลูกค้าในโซน";
+    tag.textContent = "-";
+    list.innerHTML = `<div class="empty" style="padding:16px;">คลิกแถวโซนด้านบนเพื่อดูรายชื่อลูกค้า</div>`;
+    return;
+  }
+
+  title.textContent = `รายชื่อลูกค้า — ${z.zone}`;
+  tag.textContent = `${z.customerCount.toLocaleString()} ราย`;
+
+  const sortedCustomers = z.customers.slice().sort((a, b) => b.sales - a.sales);
+  list.innerHTML = sortedCustomers.map(c => `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <div style="min-width:0;">
+        <div style="font-weight:600;">${c.name}</div>
+        <div style="font-size:11px;color:var(--muted);">เซลล์ ${c.seller || '-'} · ${c.orders} รายการ</div>
+      </div>
+      <div style="font-weight:700;flex:none;">${fmt(c.sales)} บาท</div>
+    </div>`).join("");
+}
+
 ["fYear", "fMonth", "fSeller", "fDateFrom", "fDateTo"].forEach(id => document.getElementById(id).addEventListener("change", applyFilters));
 document.getElementById("fSearch").addEventListener("input", applyFilters);
 document.getElementById("btnReset").addEventListener("click", () => {
@@ -1014,9 +1224,10 @@ document.getElementById("btnReset").addEventListener("click", () => {
   document.getElementById("fSearch").value = "";
   applyFilters();
 });
-document.getElementById("btnReload").addEventListener("click", loadData);
+document.getElementById("btnReload").addEventListener("click", () => { loadData(); loadCustomerMaster(); });
 
 loadData();
+loadCustomerMaster();
 </script>
 </body>
 </html>
