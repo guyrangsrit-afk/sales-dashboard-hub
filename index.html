@@ -161,10 +161,13 @@
 
   .table-wrap.retention{max-height:560px;}
   .table-wrap.retention table th:first-child,
-  .table-wrap.retention table td:first-child{
+  .table-wrap.retention table td:first-child,
+  .table-wrap.zone table th:first-child,
+  .table-wrap.zone table td:first-child{
     position:sticky;left:0;background:var(--panel);z-index:2;text-align:left;white-space:nowrap;
   }
-  .table-wrap.retention table th{z-index:3;}
+  .table-wrap.retention table th,
+  .table-wrap.zone table th{z-index:3;}
 
   @media (max-width:860px){
     .sidebar{position:fixed;left:0;top:0;transform:translateX(-100%);transition:.2s;z-index:20;box-shadow:0 0 0 100vmax rgba(0,0,0,0);}
@@ -198,9 +201,13 @@
 
     .table-wrap.retention{max-height:420px;}
     .table-wrap.retention table th,
-    .table-wrap.retention table td{padding:8px 7px;font-size:11px;}
+    .table-wrap.retention table td,
+    .table-wrap.zone table th,
+    .table-wrap.zone table td{padding:8px 7px;font-size:11px;}
     .table-wrap.retention table th:first-child,
-    .table-wrap.retention table td:first-child{
+    .table-wrap.retention table td:first-child,
+    .table-wrap.zone table th:first-child,
+    .table-wrap.zone table td:first-child{
       max-width:104px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     }
     .mobile-hint{display:block !important;}
@@ -423,9 +430,10 @@
       <section class="block" id="zone">
         <div class="card">
           <div class="card-head"><h3>Zone</h3><span class="tag" id="zoneTag">-</span></div>
-          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ลูกค้าแบ่งตามโซน (เชียงใหม่ / ลำพูน) · จำนวนลูกค้านับจากทั้งหมด ยอดขายนับตามตัวกรองด้านบน</div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ลูกค้าแบ่งตามโซน (เชียงใหม่ / ลำพูน) · จำนวนลูกค้านับจากทั้งหมด ยอดขายแยกรายเดือนตามตัวกรองด้านบน</div>
+          <div class="mobile-hint" style="display:none;font-size:11px;color:var(--muted);margin:-8px 0 12px;">← เลื่อนซ้าย-ขวาเพื่อดูเดือนอื่น →</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="zoneProvinceChips"></div>
-          <div class="table-wrap" style="max-height:360px;">
+          <div class="table-wrap zone" style="max-height:400px;">
             <table>
               <thead id="zoneHead"></thead>
               <tbody id="zoneBody"></tbody>
@@ -1076,33 +1084,53 @@ let zoneProvinceFilter = "all";
 let zoneSort = { key: "totalSales", dir: "desc" };
 let selectedZone = null;
 let zoneStatsCache = [];
+let zoneMonths = [];
 
 function computeZoneStats(data) {
   const totalsByMember = {};
+  const monthsSet = new Set();
+  const memberMonthly = {};
+
   data.forEach(r => {
     if (!r.memberId) return;
     if (!totalsByMember[r.memberId]) totalsByMember[r.memberId] = { sales: 0, orders: 0 };
     totalsByMember[r.memberId].sales += r.sales;
     totalsByMember[r.memberId].orders += 1;
+
+    if (!r.date) return;
+    const ym = r.date.slice(0, 7);
+    monthsSet.add(ym);
+    if (!memberMonthly[r.memberId]) memberMonthly[r.memberId] = {};
+    memberMonthly[r.memberId][ym] = (memberMonthly[r.memberId][ym] || 0) + r.sales;
   });
+
+  const months = [...monthsSet].sort();
 
   const zoneMap = {};
   customerMaster.forEach(c => {
-    if (!zoneMap[c.zone]) zoneMap[c.zone] = { zone: c.zone, province: c.province, district: c.district, customers: [] };
+    if (!zoneMap[c.zone]) zoneMap[c.zone] = { zone: c.zone, province: c.province, district: c.district, customers: [], monthly: {} };
     const t = totalsByMember[c.id] || { sales: 0, orders: 0 };
     zoneMap[c.zone].customers.push({ name: c.name, seller: c.seller, sales: t.sales, orders: t.orders });
+    const mm = memberMonthly[c.id] || {};
+    months.forEach(m => {
+      zoneMap[c.zone].monthly[m] = (zoneMap[c.zone].monthly[m] || 0) + (mm[m] || 0);
+    });
   });
 
-  return Object.values(zoneMap).map(z => ({
+  const zones = Object.values(zoneMap).map(z => ({
     ...z,
     customerCount: z.customers.length,
     totalSales: z.customers.reduce((s, c) => s + c.sales, 0)
   }));
+
+  return { zones, months };
 }
 
 function renderZone(data) {
   if (!customerMaster.length) return;
-  zoneStatsCache = computeZoneStats(data);
+  const { zones, months } = computeZoneStats(data);
+  zoneStatsCache = zones;
+  zoneMonths = months;
   renderZoneChips();
   renderZoneTable();
 }
@@ -1126,11 +1154,20 @@ function renderZoneChips() {
 
 function renderZoneTable() {
   const { key, dir } = zoneSort;
+  const months = zoneMonths;
   const rows = zoneProvinceFilter === "all" ? zoneStatsCache : zoneStatsCache.filter(z => z.province === zoneProvinceFilter);
+  const maxCell = Math.max(1, ...rows.flatMap(z => months.map(m => z.monthly[m] || 0)));
+
+  const sortVal = (z) => {
+    if (key === "district") return z.district.toLowerCase();
+    if (key === "province") return z.province.toLowerCase();
+    if (key === "avg") return z.customerCount ? z.totalSales / z.customerCount : 0;
+    if (key === "totalSales" || key === "customerCount") return z[key];
+    return z.monthly[key] || 0; // a month key
+  };
 
   const sorted = rows.slice().sort((a, b) => {
-    const av = key === "district" ? a.district.toLowerCase() : (key === "province" ? a.province.toLowerCase() : a[key]);
-    const bv = key === "district" ? b.district.toLowerCase() : (key === "province" ? b.province.toLowerCase() : b[key]);
+    const av = sortVal(a), bv = sortVal(b);
     if (av < bv) return dir === "asc" ? -1 : 1;
     if (av > bv) return dir === "asc" ? 1 : -1;
     return 0;
@@ -1144,8 +1181,9 @@ function renderZoneTable() {
     <th class="sortable" data-key="district">โซน<span class="sort-arrow">${arrow("district")}</span></th>
     <th class="sortable" data-key="province">จังหวัด<span class="sort-arrow">${arrow("province")}</span></th>
     <th class="sortable num" data-key="customerCount">จำนวนลูกค้า<span class="sort-arrow">${arrow("customerCount")}</span></th>
-    <th class="sortable num" data-key="totalSales">ยอดขายรวม<span class="sort-arrow">${arrow("totalSales")}</span></th>
-    <th class="num">เฉลี่ย/ราย</th>
+    ${months.map(m => `<th class="sortable num" data-key="${m}">${m}<span class="sort-arrow">${arrow(m)}</span></th>`).join("")}
+    <th class="sortable num" data-key="totalSales">รวม<span class="sort-arrow">${arrow("totalSales")}</span></th>
+    <th class="sortable num" data-key="avg">เฉลี่ย/ราย<span class="sort-arrow">${arrow("avg")}</span></th>
   </tr>`;
 
   const body = document.getElementById("zoneBody");
@@ -1154,12 +1192,21 @@ function renderZoneTable() {
   body.innerHTML = sorted.map(z => {
     const avg = z.customerCount ? z.totalSales / z.customerCount : 0;
     const selected = selectedZone === z.zone;
+    const monthCells = months.map(m => {
+      const v = z.monthly[m] || 0;
+      if (!v) return `<td class="num" style="color:var(--muted);">-</td>`;
+      const intensity = Math.min(1, v / maxCell);
+      const bg = `color-mix(in srgb, var(--primary) ${Math.round(intensity * 70 + 10)}%, var(--panel))`;
+      const textColor = intensity > 0.45 ? "#fff" : "var(--text)";
+      return `<td class="num" style="background:${bg};color:${textColor};font-weight:600;">${fmt(v)}</td>`;
+    }).join("");
     return `<tr data-zone="${z.zone}" style="cursor:pointer;${selected ? 'background:var(--primary-soft);' : ''}">
       <td style="font-weight:600;">${z.district}</td>
       <td style="color:var(--muted);">${z.province}</td>
       <td class="num">${z.customerCount.toLocaleString()}</td>
-      <td class="num" style="font-weight:700;">${fmt(z.totalSales)} บาท</td>
-      <td class="num" style="color:var(--muted);">${fmt(avg)} บาท</td>
+      ${monthCells}
+      <td class="num" style="font-weight:700;">${fmt(z.totalSales)}</td>
+      <td class="num" style="color:var(--muted);">${fmt(avg)}</td>
     </tr>`;
   }).join("");
 
