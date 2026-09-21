@@ -186,7 +186,7 @@
 
     .filters{padding:12px;gap:10px;}
     .filters .field{flex:1 1 calc(50% - 5px);min-width:0;}
-    .filters .field select, .filters .field input{width:100%;min-height:44px;font-size:14px;}
+    .filters .field select, .filters .field input, .filters .field button{width:100%;min-height:44px;font-size:14px;}
     .filters .field:has(#fSearch){flex-basis:100%;}
     .filters .btn{flex:1 1 calc(50% - 5px);min-height:44px;justify-content:center;align-self:auto;}
 
@@ -295,7 +295,14 @@
 
       <div class="filters" id="filtersPanel">
         <div class="field"><label>ปี</label><select id="fYear"><option value="">ทั้งหมด</option></select></div>
-        <div class="field"><label>เดือน</label><select id="fMonth"><option value="">ทั้งหมด</option></select></div>
+        <div class="field" style="position:relative;">
+          <label>เดือน</label>
+          <button type="button" id="fMonthBtn" style="box-sizing:border-box;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:13px;min-width:130px;font-family:inherit;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:6px;">
+            <span id="fMonthBtnLabel">ทั้งหมด</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div id="fMonthPanel" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--panel);border:1px solid var(--border);border-radius:9px;box-shadow:var(--shadow);padding:8px;min-width:150px;max-height:220px;overflow-y:auto;z-index:20;"></div>
+        </div>
         <div class="field"><label>เซลล์</label><select id="fSeller"><option value="">ทั้งหมด</option></select></div>
         <div class="field"><label>จากวันที่</label><input type="date" id="fDateFrom"></div>
         <div class="field"><label>ถึงวันที่</label><input type="date" id="fDateTo"></div>
@@ -690,14 +697,54 @@ async function loadCustomerMaster() {
   }
 }
 
+let selectedMonths = [];
+
 function populateFilters() {
   const years = [...new Set(allRows.map(r => r.year))].filter(Boolean).sort();
   const months = [...new Set(allRows.map(r => r.month))].filter(Boolean).sort((a,b)=>+a-+b);
   const sellers = [...new Set(allRows.map(r => r.seller))].filter(Boolean).sort();
   fillSelect("fYear", years);
-  fillSelect("fMonth", months, m => `เดือน ${m}`);
   fillSelect("fSeller", sellers);
+  populateMonthPanel(months);
 }
+
+function populateMonthPanel(months) {
+  selectedMonths = selectedMonths.filter(m => months.includes(m));
+  const panel = document.getElementById("fMonthPanel");
+  panel.innerHTML = months.map(m => `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:13px;cursor:pointer;white-space:nowrap;">
+      <input type="checkbox" value="${m}" ${selectedMonths.includes(m) ? "checked" : ""} style="cursor:pointer;">
+      เดือน ${m}
+    </label>`).join("");
+  panel.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener("change", () => {
+      selectedMonths = [...panel.querySelectorAll('input[type="checkbox"]:checked')].map(el => el.value);
+      updateMonthBtnLabel();
+      applyFilters();
+    });
+  });
+  updateMonthBtnLabel();
+}
+
+function updateMonthBtnLabel() {
+  const label = document.getElementById("fMonthBtnLabel");
+  if (!selectedMonths.length) label.textContent = "ทั้งหมด";
+  else if (selectedMonths.length <= 2) label.textContent = selectedMonths.map(m => `เดือน ${m}`).join(", ");
+  else label.textContent = `${selectedMonths.length} เดือน`;
+}
+
+document.getElementById("fMonthBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const panel = document.getElementById("fMonthPanel");
+  panel.style.display = panel.style.display === "none" ? "block" : "none";
+});
+document.addEventListener("click", (e) => {
+  const panel = document.getElementById("fMonthPanel");
+  const btn = document.getElementById("fMonthBtn");
+  if (panel.style.display !== "none" && !panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.style.display = "none";
+  }
+});
 
 function fillSelect(id, values, labelFn) {
   const el = document.getElementById(id);
@@ -709,7 +756,6 @@ function fillSelect(id, values, labelFn) {
 
 function getFiltered() {
   const year = document.getElementById("fYear").value;
-  const month = document.getElementById("fMonth").value;
   const seller = document.getElementById("fSeller").value;
   const dateFrom = document.getElementById("fDateFrom").value;
   const dateTo = document.getElementById("fDateTo").value;
@@ -717,7 +763,7 @@ function getFiltered() {
 
   return allRows.filter(r =>
     (!year || r.year === year) &&
-    (!month || r.month === month) &&
+    (!selectedMonths.length || selectedMonths.includes(r.month)) &&
     (!seller || r.seller === seller) &&
     (!dateFrom || r.date >= dateFrom) &&
     (!dateTo || r.date <= dateTo) &&
@@ -1495,15 +1541,16 @@ function renderSellerDetail() {
     </div>`).join("");
 }
 
-["fYear", "fMonth", "fSeller", "fDateFrom", "fDateTo"].forEach(id => document.getElementById(id).addEventListener("change", applyFilters));
+["fYear", "fSeller", "fDateFrom", "fDateTo"].forEach(id => document.getElementById(id).addEventListener("change", applyFilters));
 document.getElementById("fSearch").addEventListener("input", applyFilters);
 document.getElementById("btnReset").addEventListener("click", () => {
   document.getElementById("fYear").value = "";
-  document.getElementById("fMonth").value = "";
   document.getElementById("fSeller").value = "";
   document.getElementById("fDateFrom").value = "";
   document.getElementById("fDateTo").value = "";
   document.getElementById("fSearch").value = "";
+  selectedMonths = [];
+  populateMonthPanel([...new Set(allRows.map(r => r.month))].filter(Boolean).sort((a,b)=>+a-+b));
   applyFilters();
 });
 document.getElementById("btnReload").addEventListener("click", () => { loadData(); loadCustomerMaster(); });
