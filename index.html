@@ -1208,8 +1208,8 @@ function computeZoneStats(data) {
   customerMaster.forEach(c => {
     if (!zoneMap[c.zone]) zoneMap[c.zone] = { zone: c.zone, province: c.province, district: c.district, customers: [], monthly: {} };
     const t = totalsByMember[c.id] || { sales: 0, orders: 0 };
-    zoneMap[c.zone].customers.push({ name: c.name, seller: c.seller, sales: t.sales, orders: t.orders });
     const mm = memberMonthly[c.id] || {};
+    zoneMap[c.zone].customers.push({ name: c.name, seller: c.seller, sales: t.sales, orders: t.orders, monthly: mm });
     months.forEach(m => {
       zoneMap[c.zone].monthly[m] = (zoneMap[c.zone].monthly[m] || 0) + (mm[m] || 0);
     });
@@ -1325,7 +1325,7 @@ function renderZoneTable() {
     const expandRow = selected ? `<tr>
       <td colspan="${colCount}" style="padding:0;background:var(--panel-2);position:static;left:auto;">
         <div style="padding:8px 14px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;">ลูกค้าใน ${z.zone} (${z.customerCount.toLocaleString()} ราย)</div>
-        <div style="max-height:300px;overflow-y:auto;">${zoneCustomerListHTML(z)}</div>
+        <div style="max-height:340px;overflow-y:auto;">${zoneCustomerListHTML(z, months)}</div>
       </td>
     </tr>` : "";
     return row + expandRow;
@@ -1352,19 +1352,42 @@ function renderZoneTable() {
   });
 }
 
-function zoneCustomerListHTML(z) {
+function zoneCustomerListHTML(z, months) {
   if (!z.customers.length) {
     return `<div class="empty" style="padding:16px;">ไม่มีลูกค้าในโซนนี้ตามตัวกรองนี้</div>`;
   }
   const sortedCustomers = z.customers.slice().sort((a, b) => b.sales - a.sales);
-  return sortedCustomers.map(c => `
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 14px;border-top:1px solid var(--border);font-size:13px;">
-      <div style="min-width:0;">
-        <div style="font-weight:600;">${c.name}</div>
-        <div style="font-size:11px;color:var(--muted);">เซลล์ ${c.seller || '-'} · ${c.orders} รายการ</div>
-      </div>
-      <div style="font-weight:700;flex:none;">${fmt(c.sales)} บาท</div>
-    </div>`).join("");
+  const maxCell = Math.max(1, ...sortedCustomers.flatMap(c => months.map(m => c.monthly[m] || 0)));
+
+  const cellHTML = (v) => {
+    if (!v) return `<td class="num" style="padding:6px 8px;color:var(--muted);white-space:nowrap;">-</td>`;
+    const intensity = Math.min(1, v / maxCell);
+    const bg = `color-mix(in srgb, var(--primary) ${Math.round(intensity * 70 + 10)}%, var(--panel-2))`;
+    const textColor = intensity > 0.45 ? "#fff" : "var(--text)";
+    return `<td class="num" style="padding:6px 8px;background:${bg};color:${textColor};font-weight:600;white-space:nowrap;">${fmt(v)}</td>`;
+  };
+
+  return `<div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr>
+          <th style="padding:6px 10px;text-align:left;position:sticky;left:0;background:var(--panel-2);white-space:nowrap;">ลูกค้า</th>
+          <th style="padding:6px 8px;text-align:left;white-space:nowrap;color:var(--muted);">เซลล์</th>
+          ${months.map(m => `<th class="num" style="padding:6px 8px;white-space:nowrap;color:var(--muted);">${m}</th>`).join("")}
+          <th class="num" style="padding:6px 10px;white-space:nowrap;color:var(--muted);">รวม</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sortedCustomers.map(c => `
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:6px 10px;font-weight:600;position:sticky;left:0;background:var(--panel-2);white-space:nowrap;">${c.name}</td>
+            <td style="padding:6px 8px;color:var(--muted);white-space:nowrap;">${c.seller || '-'}</td>
+            ${months.map(m => cellHTML(c.monthly[m] || 0)).join("")}
+            <td class="num" style="padding:6px 10px;font-weight:700;white-space:nowrap;">${fmt(c.sales)}</td>
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  </div>`;
 }
 
 let sellerSort = { key: "totalSales", dir: "desc" };
