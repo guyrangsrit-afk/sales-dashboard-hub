@@ -103,6 +103,8 @@
   .btn svg{width:14px;height:14px;}
 
   main.content{padding:0 28px 40px;max-width:1440px;margin:0 auto;}
+  .page{display:none;}
+  .page.active{display:block;}
 
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px;}
   @media (max-width:1200px){.kpis{grid-template-columns:repeat(3,1fr);}}
@@ -319,7 +321,8 @@
     </div>
 
     <main class="content">
-      <section class="block" id="overview">
+      <div class="page active" data-page="overview">
+      <section class="block">
         <div class="kpis">
           <div class="kpi c1">
             <div class="kpi-top">
@@ -400,12 +403,19 @@
           <div id="sellerDetailList" style="max-height:300px;overflow-y:auto;"></div>
         </div>
       </section>
+      </div>
 
-      <section class="block grid2">
+      <div class="page" data-page="products">
+      <section class="block">
         <div class="card" id="products">
           <div class="card-head"><h3>สินค้าขายดี Top 10</h3><span class="badge">by ยอดขาย</span></div>
           <div id="listProducts" class="bar-list"></div>
         </div>
+      </section>
+      </div>
+
+      <div class="page" data-page="customers">
+      <section class="block">
         <div class="card" id="customers">
           <div class="card-head"><h3>ลูกค้า Top 10</h3><span class="badge">by ยอดขาย</span></div>
           <div id="listCustomers" class="bar-list"></div>
@@ -447,8 +457,10 @@
           </div>
         </div>
       </section>
+      </div>
 
-      <section class="block" id="retention">
+      <div class="page" data-page="retention">
+      <section class="block">
         <div class="card">
           <div class="card-head"><h3>Retention</h3><span class="tag" id="retentionTag">-</span></div>
           <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ยอดซื้อรายเดือนต่อลูกค้า แสดงทุกราย เรียงตามยอดขายสูงสุด · นับตามตัวกรองด้านบน</div>
@@ -464,8 +476,10 @@
           </div>
         </div>
       </section>
+      </div>
 
-      <section class="block" id="zone">
+      <div class="page" data-page="zone">
+      <section class="block">
         <div class="card">
           <div class="card-head"><h3>Zone</h3><span class="tag" id="zoneTag">-</span></div>
           <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ลูกค้าแบ่งตามโซน (เชียงใหม่ / ลำพูน) · จำนวนลูกค้านับจากทั้งหมด ยอดขายนับตามตัวกรองด้านบน (ใช้ตัวกรอง "เดือน" ด้านบนสุดเพื่อดูเฉพาะเดือนที่ต้องการ) · คลิกแถวโซนเพื่อดูรายชื่อลูกค้า</div>
@@ -480,8 +494,10 @@
           </div>
         </div>
       </section>
+      </div>
 
-      <section class="block" id="transactions">
+      <div class="page" data-page="transactions">
+      <section class="block">
         <div class="card">
           <div class="card-head"><h3>รายการล่าสุด</h3><span class="tag" id="tblCount">-</span></div>
           <div class="table-wrap">
@@ -498,6 +514,7 @@
           </div>
         </div>
       </section>
+      </div>
     </main>
   </div>
 </div>
@@ -581,13 +598,16 @@ setFiltersVisible(defaultFiltersVisible);
 document.getElementById("menuBtn").addEventListener("click", () => {
   document.getElementById("sidebar").classList.toggle("open");
 });
+function switchPage(target) {
+  document.querySelectorAll(".nav a, .bottomnav a").forEach(x => x.classList.toggle("active", x.dataset.target === target));
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("active", p.dataset.page === target));
+  document.getElementById("sidebar").classList.remove("open");
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
 document.querySelectorAll(".nav a, .bottomnav a").forEach(a => {
   a.addEventListener("click", e => {
     e.preventDefault();
-    const target = a.dataset.target;
-    document.querySelectorAll(".nav a, .bottomnav a").forEach(x => x.classList.toggle("active", x.dataset.target === target));
-    document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    document.getElementById("sidebar").classList.remove("open");
+    switchPage(a.dataset.target);
   });
 });
 
