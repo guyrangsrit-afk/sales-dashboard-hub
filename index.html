@@ -463,8 +463,13 @@
       <section class="block">
         <div class="card">
           <div class="card-head"><h3>Retention</h3><span class="tag" id="retentionTag">-</span></div>
-          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ยอดซื้อรายเดือนต่อลูกค้า แสดงทุกราย เรียงตามยอดขายสูงสุด · นับตามตัวกรองด้านบน</div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">ยอดซื้อรายเดือนต่อลูกค้า แสดงทุกราย เรียงตามยอดขายสูงสุด · นับตามตัวกรองด้านบน · Retention rate = % ของลูกค้าที่ซื้อเดือนก่อน แล้วกลับมาซื้อเดือนนี้ · โหมด % MoM: "ใหม่" = เดือนก่อนไม่ได้ซื้อ</div>
           <div class="mobile-hint" style="display:none;font-size:11px;color:var(--muted);margin:-8px 0 12px;">← เลื่อนซ้าย-ขวาเพื่อดูเดือนอื่น →</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+            <span style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;">แสดงเป็น</span>
+            <button class="btn primary" id="retModeBaht" style="padding:7px 14px;">ยอดบาท</button>
+            <button class="btn" id="retModeMom" style="padding:7px 14px;">% MoM</button>
+          </div>
           <input type="text" id="retentionSearch" placeholder="ค้นหาลูกค้าใน Retention..." style="width:100%;box-sizing:border-box;background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-size:13px;font-family:inherit;margin-bottom:12px;">
           <div class="tag" id="retentionSearchTag" style="display:none;margin-bottom:10px;">-</div>
           <div class="table-wrap retention">
@@ -1088,6 +1093,8 @@ let retentionTotalCount = 0;
 let retentionMonthlyCounts = {};
 let retentionMonthlyTotals = {};
 let retentionGrandTotal = 0;
+let retentionRates = {};
+let retentionMode = "baht";
 let retentionSort = { key: "total", dir: "desc" };
 
 function renderRetention(data) {
@@ -1116,8 +1123,50 @@ function renderRetention(data) {
   });
   retentionGrandTotal = customers.reduce((s, c) => s + c.total, 0);
 
+  retentionRates = {};
+  retentionMonths.forEach((m, i) => {
+    if (i === 0) { retentionRates[m] = null; return; }
+    const prev = retentionMonths[i - 1];
+    const prevBuyers = customers.filter(c => (c.months[prev] || 0) > 0);
+    if (!prevBuyers.length) { retentionRates[m] = null; return; }
+    const returned = prevBuyers.filter(c => (c.months[m] || 0) > 0).length;
+    retentionRates[m] = { pct: returned / prevBuyers.length * 100, returned, base: prevBuyers.length };
+  });
+
   renderRetentionTable();
 }
+
+function retentionMomOf(c, m) {
+  const i = retentionMonths.indexOf(m);
+  if (i <= 0) return null;
+  const prev = c.months[retentionMonths[i - 1]] || 0;
+  const cur = c.months[m] || 0;
+  if (!prev && !cur) return null;
+  if (!prev) return { kind: "new" };
+  return { kind: "pct", pct: (cur - prev) / prev * 100 };
+}
+
+function retentionMomCell(mom) {
+  if (!mom) return `<td class="num" style="color:var(--muted);">-</td>`;
+  if (mom.kind === "new") {
+    return `<td class="num" style="background:color-mix(in srgb, var(--sky) 16%, var(--panel));color:var(--sky);font-weight:700;">ใหม่</td>`;
+  }
+  const up = mom.pct >= 0;
+  const color = up ? "var(--teal)" : "var(--rose)";
+  const alpha = Math.round(Math.min(Math.abs(mom.pct), 100) / 100 * 40 + 8);
+  const bg = `color-mix(in srgb, ${color} ${alpha}%, var(--panel))`;
+  const text = `${up ? "▲" : "▼"} ${Math.abs(mom.pct).toFixed(0)}%`;
+  return `<td class="num" style="background:${bg};color:${color};font-weight:700;">${text}</td>`;
+}
+
+function setRetentionMode(mode) {
+  retentionMode = mode;
+  document.getElementById("retModeBaht").classList.toggle("primary", mode === "baht");
+  document.getElementById("retModeMom").classList.toggle("primary", mode === "mom");
+  renderRetentionTable();
+}
+document.getElementById("retModeBaht").addEventListener("click", () => setRetentionMode("baht"));
+document.getElementById("retModeMom").addEventListener("click", () => setRetentionMode("mom"));
 
 function renderRetentionTable() {
   const months = retentionMonths;
@@ -1127,9 +1176,19 @@ function renderRetentionTable() {
   const query = document.getElementById("retentionSearch").value.trim().toLowerCase();
   const filtered = query ? retentionShown.filter(c => c.name.toLowerCase().includes(query)) : retentionShown;
 
+  const sortVal = (c) => {
+    if (key === "name") return c.name.toLowerCase();
+    if (key === "total") return c.total;
+    if (retentionMode === "mom") {
+      const mom = retentionMomOf(c, key);
+      if (!mom) return -1e9;
+      return mom.kind === "new" ? 1e9 : mom.pct;
+    }
+    return c.months[key] || 0;
+  };
+
   const sorted = filtered.slice().sort((a, b) => {
-    const av = key === "name" ? a.name.toLowerCase() : (key === "total" ? a.total : (a.months[key] || 0));
-    const bv = key === "name" ? b.name.toLowerCase() : (key === "total" ? b.total : (b.months[key] || 0));
+    const av = sortVal(a), bv = sortVal(b);
     if (av < bv) return dir === "asc" ? -1 : 1;
     if (av > bv) return dir === "asc" ? 1 : -1;
     return 0;
@@ -1160,14 +1219,39 @@ function renderRetentionTable() {
     <td class="num" style="font-weight:700;color:var(--muted);">${retentionTotalCount.toLocaleString()} ราย</td>
   </tr>`;
 
-  const totalRow = `<tr style="background:var(--panel-2);border-bottom:2px solid var(--border);">
-    <td style="font-weight:700;background:var(--panel-2);">ยอดขายรวม</td>
-    ${months.map(m => `<td class="num" style="font-weight:700;color:var(--primary);">${fmt(retentionMonthlyTotals[m] || 0)}</td>`).join("")}
+  const totalMomCell = (m) => {
+    const i = months.indexOf(m);
+    if (i <= 0) return `<td class="num" style="font-weight:700;color:var(--muted);">-</td>`;
+    const prev = retentionMonthlyTotals[months[i - 1]] || 0;
+    const cur = retentionMonthlyTotals[m] || 0;
+    if (!prev) return `<td class="num" style="font-weight:700;color:var(--muted);">-</td>`;
+    const pct = (cur - prev) / prev * 100;
+    const color = pct >= 0 ? "var(--teal)" : "var(--rose)";
+    return `<td class="num" style="font-weight:700;color:${color};">${pct >= 0 ? "▲" : "▼"} ${Math.abs(pct).toFixed(0)}%</td>`;
+  };
+
+  const totalRow = `<tr style="background:var(--panel-2);">
+    <td style="font-weight:700;background:var(--panel-2);">${retentionMode === "mom" ? "ยอดขายรวม (MoM)" : "ยอดขายรวม"}</td>
+    ${months.map(m => retentionMode === "mom"
+      ? totalMomCell(m)
+      : `<td class="num" style="font-weight:700;color:var(--primary);">${fmt(retentionMonthlyTotals[m] || 0)}</td>`).join("")}
     <td class="num" style="font-weight:700;color:var(--primary);">${fmt(retentionGrandTotal)}</td>
   </tr>`;
 
-  body.innerHTML = countRow + totalRow + sorted.map(c => {
+  const rateRow = `<tr style="background:var(--panel-2);border-bottom:2px solid var(--border);">
+    <td style="font-weight:700;background:var(--panel-2);">Retention rate</td>
+    ${months.map(m => {
+      const r = retentionRates[m];
+      if (!r) return `<td class="num" style="font-weight:700;color:var(--muted);">-</td>`;
+      const color = r.pct >= 50 ? "var(--teal)" : (r.pct >= 30 ? "var(--amber)" : "var(--rose)");
+      return `<td class="num" style="font-weight:700;color:${color};" title="${r.returned} จาก ${r.base} รายที่ซื้อเดือนก่อน กลับมาซื้อ">${r.pct.toFixed(0)}%</td>`;
+    }).join("")}
+    <td class="num" style="font-weight:700;color:var(--muted);">-</td>
+  </tr>`;
+
+  body.innerHTML = countRow + totalRow + rateRow + sorted.map(c => {
     const cells = months.map(m => {
+      if (retentionMode === "mom") return retentionMomCell(retentionMomOf(c, m));
       const v = c.months[m] || 0;
       if (!v) return `<td class="num" style="color:var(--muted);">-</td>`;
       const intensity = Math.min(1, v / maxCell);
