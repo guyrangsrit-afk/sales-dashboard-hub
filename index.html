@@ -369,16 +369,6 @@
           </div>
         </div>
 
-        <div class="grid">
-          <div class="card">
-            <div class="card-head"><h3>ยอดขายตามวันที่</h3><span class="tag" id="trendRange">-</span></div>
-            <div class="chart-wrap"><canvas id="chartTrend"></canvas></div>
-          </div>
-          <div class="card">
-            <div class="card-head"><h3>ยอดขายตามเซลล์</h3></div>
-            <div class="chart-wrap"><canvas id="chartSeller"></canvas></div>
-          </div>
-        </div>
       </section>
 
       <section class="block">
@@ -792,8 +782,6 @@ function applyFilters() {
   const data = getFiltered();
   lastFilteredData = data;
   renderKPIs(data);
-  renderTrend(data);
-  renderSeller(data);
   renderTopProducts(data);
   renderTopCustomers(data);
   renderTable(data);
@@ -863,41 +851,6 @@ function baseOptions(extra = {}) {
       y: { ticks: { color: c.tick }, grid: { color: c.grid } }
     }
   }, extra);
-}
-
-function renderTrend(data) {
-  const byDate = {};
-  data.forEach(r => { byDate[r.date] = (byDate[r.date] || 0) + r.sales; });
-  const dates = Object.keys(byDate).sort();
-  const c = themeColors();
-
-  document.getElementById("trendRange").textContent = dates.length ? `${dates[0]} → ${dates[dates.length-1]}` : "-";
-
-  upsertChart("chartTrend", {
-    type: "line",
-    data: { labels: dates, datasets: [{
-      label: "ยอดขาย", data: dates.map(d => byDate[d]),
-      borderColor: c.palette[0], backgroundColor: c.palette[0] + "22",
-      fill: true, tension: 0.35, pointRadius: 0, borderWidth: 2
-    }]},
-    options: baseOptions({ plugins: { legend: { display: false } } })
-  });
-}
-
-function renderSeller(data) {
-  const bySeller = {};
-  data.forEach(r => { bySeller[r.seller || "ไม่ระบุ"] = (bySeller[r.seller || "ไม่ระบุ"] || 0) + r.sales; });
-  const labels = Object.keys(bySeller);
-  const c = themeColors();
-
-  upsertChart("chartSeller", {
-    type: "doughnut",
-    data: { labels, datasets: [{ data: labels.map(l => bySeller[l]), backgroundColor: c.palette, borderWidth: 0 }] },
-    options: {
-      responsive: true, maintainAspectRatio: false, cutout: "68%",
-      plugins: { legend: { position: "bottom", labels: { color: c.tick, boxWidth: 10, font: { size: 11 } } } }
-    }
-  });
 }
 
 function topN(data, key, n = 10) {
