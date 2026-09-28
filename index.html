@@ -384,7 +384,7 @@
       <section class="block">
         <div class="card">
           <div class="card-head"><h3>ผลงานเซลล์รายคน</h3><span class="tag" id="sellerTag">-</span></div>
-          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">เทียบยอดขายรายเดือนต่อเซลล์ · MoM% เทียบเดือนล่าสุดกับเดือนก่อนหน้า · นับตามตัวกรองด้านบน</div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">เทียบยอดขายรายเดือนต่อเซลล์ · นับตามตัวกรองด้านบน</div>
           <div class="mobile-hint" style="display:none;font-size:11px;color:var(--muted);margin:-8px 0 12px;">← เลื่อนซ้าย-ขวาเพื่อดูเดือนอื่น →</div>
           <div class="table-wrap zone" style="max-height:340px;">
             <table>
@@ -1540,7 +1540,6 @@ function renderSellerTable() {
 
   const sortVal = (s) => {
     if (key === "seller") return s.seller.toLowerCase();
-    if (key === "momPct") return s.momPct == null ? -Infinity : s.momPct;
     if (months.includes(key)) return s.monthly[key] || 0;
     return s[key];
   };
@@ -1562,7 +1561,6 @@ function renderSellerTable() {
     <th class="sortable num" data-key="avgOrder">เฉลี่ย/ออเดอร์<span class="sort-arrow">${arrow("avgOrder")}</span></th>
     ${months.map(m => `<th class="sortable num" data-key="${m}">${m}<span class="sort-arrow">${arrow(m)}</span></th>`).join("")}
     <th class="sortable num" data-key="totalSales">รวม<span class="sort-arrow">${arrow("totalSales")}</span></th>
-    <th class="sortable num" data-key="momPct">MoM%<span class="sort-arrow">${arrow("momPct")}</span></th>
   </tr>`;
 
   const body = document.getElementById("sellerBody");
@@ -1578,8 +1576,6 @@ function renderSellerTable() {
       const textColor = intensity > 0.45 ? "#fff" : "var(--text)";
       return `<td class="num" style="background:${bg};color:${textColor};font-weight:600;">${fmt(v)}</td>`;
     }).join("");
-    const momText = s.momPct == null ? "-" : `${s.momPct >= 0 ? "▲" : "▼"} ${Math.abs(s.momPct).toFixed(1)}%`;
-    const momColor = s.momPct == null ? "var(--muted)" : (s.momPct >= 0 ? "var(--teal)" : "var(--rose)");
     return `<tr data-seller="${s.seller}" style="cursor:pointer;${selected ? 'background:var(--primary-soft);' : ''}">
       <td style="font-weight:600;">${s.seller}</td>
       <td class="num">${s.customerCount.toLocaleString()}</td>
@@ -1587,7 +1583,6 @@ function renderSellerTable() {
       <td class="num" style="color:var(--muted);">${fmt(s.avgOrder)}</td>
       ${monthCells}
       <td class="num" style="font-weight:700;">${fmt(s.totalSales)}</td>
-      <td class="num" style="font-weight:700;color:${momColor};">${momText}</td>
     </tr>`;
   }).join("");
 
