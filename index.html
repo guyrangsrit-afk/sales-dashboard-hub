@@ -545,7 +545,11 @@
         <div class="card">
           <div class="card-head"><h3>แนวโน้ม (8 สัปดาห์)</h3><span class="tag" id="weeklyTrendTag">-</span></div>
           <div class="chart-wrap"><canvas id="chartWeeklyTrend"></canvas></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;" id="weeklyLegend"></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;">
+            <label style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;">เลือกสินค้า (ทั้งหมด)</label>
+            <select id="weeklyProductSelect" style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:9px;padding:7px 10px;font-size:13px;font-family:inherit;flex:1;min-width:160px;"></select>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;" id="weeklyLegend"></div>
         </div>
       </section>
 
@@ -1854,6 +1858,12 @@ function renderWeeklyTrendChart(weeks, ranked, prevRankMap) {
     options: baseOptions({ plugins: { legend: { display: false } } })
   });
 
+  const allProducts = weeklyProductsCache.slice()
+    .sort((a, b) => b.series.reduce((s, v) => s + v, 0) - a.series.reduce((s, v) => s + v, 0));
+  const selectEl = document.getElementById("weeklyProductSelect");
+  selectEl.innerHTML = allProducts.map(p =>
+    `<option value="${p.name}"${p.name === selected ? " selected" : ""}>${p.name}</option>`).join("");
+
   const legendEl = document.getElementById("weeklyLegend");
   legendEl.innerHTML = lineNames.filter(Boolean).map(name => {
     const active = name === selected;
@@ -1944,6 +1954,10 @@ document.getElementById("weeklyMetricQty").addEventListener("click", () => {
   weeklyState.metric = "qty";
   document.getElementById("weeklyMetricQty").classList.add("primary");
   document.getElementById("weeklyMetricRev").classList.remove("primary");
+  renderWeeklyPage();
+});
+document.getElementById("weeklyProductSelect").addEventListener("change", (e) => {
+  weeklyState.selProduct = e.target.value;
   renderWeeklyPage();
 });
 
