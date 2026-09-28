@@ -751,7 +751,7 @@ async function loadData() {
       memberId: r[iMemberId], customer: r[iCustomer], productId: r[iProductId],
       product: r[iProduct], qty: num(r[iQty]), unit: r[iUnit],
       beforeDiscount: num(r[iBeforeDiscount]), sales: num(r[iSales]), discount: num(r[iDiscount])
-    })).filter(r => r.customer);
+    })).filter(r => r.customer && r.seller !== "T" && r.seller !== "Y");
 
     setStatus("ok", `เชื่อมต่อสำเร็จ • ${allRows.length.toLocaleString()} รายการ • อัปเดต ${new Date().toLocaleTimeString("th-TH")}`);
 
