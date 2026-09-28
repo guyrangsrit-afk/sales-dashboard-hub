@@ -261,6 +261,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
         Zone
       </a>
+      <a href="#weekly" data-target="weekly">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>
+        รายสัปดาห์
+      </a>
       <a href="#transactions" data-target="transactions">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
         รายการขาย
@@ -491,6 +495,88 @@
       </section>
       </div>
 
+      <div class="page" data-page="weekly">
+      <section class="block">
+        <div class="card">
+          <div class="card-head"><h3>เทรนด์สินค้ารายสัปดาห์</h3><span class="tag" id="weeklyRangeTag">-</span></div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 14px;">จัดกลุ่มยอดขายเป็นสัปดาห์ (จันทร์-อาทิตย์) จาก 8 สัปดาห์ล่าสุดที่ข้อมูลครบ · หมวดสินค้าประมาณจากชื่อสินค้า</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <button class="btn" id="weeklyPrevBtn" style="padding:9px 13px;">‹</button>
+              <div style="text-align:center;min-width:110px;">
+                <div style="font-weight:800;font-size:15px;" id="weeklyWeekLabel">-</div>
+                <div style="font-size:11px;color:var(--muted);" id="weeklyWeekRange">-</div>
+              </div>
+              <button class="btn" id="weeklyNextBtn" style="padding:9px 13px;">›</button>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn primary" id="weeklyMetricRev" style="padding:8px 14px;">ยอดขาย ฿</button>
+              <button class="btn" id="weeklyMetricQty" style="padding:8px 14px;">จำนวน</button>
+            </div>
+          </div>
+
+          <div class="kpis" style="grid-template-columns:repeat(3,1fr);margin-bottom:18px;">
+            <div class="kpi c1">
+              <div class="kpi-top"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div></div>
+              <div class="label">ยอดรวมสัปดาห์นี้</div>
+              <div class="value" id="weeklyTotal">-</div>
+              <div style="font-size:11px;margin-top:2px;" id="weeklyTotalWow">-</div>
+            </div>
+            <div class="kpi c3">
+              <div class="kpi-top"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12A8 8 0 1 1 4 12a8 8 0 0 1 16 0Z"/><path d="M12 8v4l3 2"/></svg></div></div>
+              <div class="label">ขายดีอันดับ 1</div>
+              <div class="value" id="weeklyTop1" style="font-size:15px;">-</div>
+            </div>
+            <div class="kpi c2">
+              <div class="kpi-top"><div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg></div></div>
+              <div class="label">มาแรงที่สุด</div>
+              <div class="value" id="weeklyRising1" style="font-size:15px;">-</div>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;">หมวดสินค้า</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="weeklyCatChips"></div>
+          <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-bottom:6px;">เซลล์</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="weeklyRepChips"></div>
+        </div>
+      </section>
+
+      <section class="block">
+        <div class="card">
+          <div class="card-head"><h3>แนวโน้ม (8 สัปดาห์)</h3><span class="tag" id="weeklyTrendTag">-</span></div>
+          <div class="chart-wrap"><canvas id="chartWeeklyTrend"></canvas></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;" id="weeklyLegend"></div>
+        </div>
+      </section>
+
+      <section class="block">
+        <div class="card">
+          <div class="card-head"><h3>อันดับสินค้าขายดี Top 10</h3><span class="tag" id="weeklyRankTag">-</span></div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 12px;">คลิกแถวเพื่อไฮไลต์สินค้าในกราฟแนวโน้ม</div>
+          <div class="table-wrap" style="max-height:440px;">
+            <table>
+              <thead>
+                <tr><th>อันดับ</th><th>สินค้า</th><th class="num">ยอด</th><th class="num">WoW</th><th class="num">เปลี่ยนอันดับ</th></tr>
+              </thead>
+              <tbody id="weeklyRankBody"></tbody>
+            </table>
+            <div class="empty" id="weeklyRankEmpty" style="display:none">ไม่พบข้อมูล</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="block grid2">
+        <div class="card">
+          <div class="card-head"><h3>มาแรง</h3><span class="badge" style="background:color-mix(in srgb, var(--teal) 16%, transparent);color:var(--teal);">▲ Rising</span></div>
+          <div id="weeklyRisingList"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h3>ขาลง</h3><span class="badge" style="background:color-mix(in srgb, var(--rose) 16%, transparent);color:var(--rose);">▼ Falling</span></div>
+          <div id="weeklyFallingList"></div>
+        </div>
+      </section>
+      </div>
+
       <div class="page" data-page="transactions">
       <section class="block">
         <div class="card">
@@ -534,6 +620,10 @@
   <a href="#zone" data-target="zone">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
     Zone
+  </a>
+  <a href="#weekly" data-target="weekly">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/><path d="M17 6h6v6"/></svg>
+    รายสัปดาห์
   </a>
   <a href="#transactions" data-target="transactions">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
@@ -667,6 +757,7 @@ async function loadData() {
 
     populateFilters();
     applyFilters();
+    renderWeeklyPage();
   } catch (err) {
     setStatus("err", "เชื่อมต่อไม่สำเร็จ: " + err.message);
     console.error(err);
@@ -1586,6 +1677,275 @@ function renderSellerDetail() {
       <div style="font-weight:700;flex:none;">${fmt(c.sales)} บาท</div>
     </div>`).join("");
 }
+
+/* ---------- Weekly Trends ---------- */
+let weeklyState = { weekIdx: null, metric: "rev", cat: "all", rep: "all", selProduct: null };
+let weeklyWeeksCache = [];
+let weeklyProductsCache = [];
+
+function mondayOf(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return d;
+}
+function isoDateStr(d) { return d.toISOString().slice(0, 10); }
+function isoWeekNum(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return Math.ceil((((t - yearStart) / 86400000) + 1) / 7);
+}
+function weekDateRangeLabel(mondayStr) {
+  const mon = new Date(mondayStr + "T00:00:00");
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const f = d => d.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+  return `${f(mon)} – ${f(sun)}`;
+}
+function productCategory(name) {
+  name = name || "";
+  if (/ไก่/.test(name)) return "ไก่";
+  if (/(กุ้ง|หมึก|ปลา|ปู)/.test(name)) return "ทะเล";
+  return "หมู";
+}
+
+function getWeeklyWeeks() {
+  const weekSet = new Set();
+  allRows.forEach(r => { if (r.date) weekSet.add(isoDateStr(mondayOf(r.date))); });
+  const todayMonday = isoDateStr(mondayOf(isoDateStr(new Date())));
+  return [...weekSet].filter(w => w < todayMonday).sort().slice(-8);
+}
+
+function computeWeeklyProducts(weeks) {
+  const idxByWeek = {}; weeks.forEach((w, i) => idxByWeek[w] = i);
+  const map = {};
+  allRows.forEach(r => {
+    if (!r.date) return;
+    if (weeklyState.rep !== "all" && r.seller !== weeklyState.rep) return;
+    const wk = isoDateStr(mondayOf(r.date));
+    const wi = idxByWeek[wk];
+    if (wi === undefined) return;
+    const cat = productCategory(r.product);
+    if (weeklyState.cat !== "all" && cat !== weeklyState.cat) return;
+    if (!map[r.product]) map[r.product] = { name: r.product, cat, series: new Array(weeks.length).fill(0) };
+    map[r.product].series[wi] += weeklyState.metric === "qty" ? r.qty : r.sales;
+  });
+  return Object.values(map);
+}
+
+function weeklyFmtValue(v) {
+  if (weeklyState.metric === "qty") return fmt(v);
+  return fmt(v) + " บาท";
+}
+
+function weeklyRankOf(products, seriesIdx) {
+  return products
+    .map(p => ({ name: p.name, v: p.series[seriesIdx] || 0 }))
+    .filter(p => p.v > 0)
+    .sort((a, b) => b.v - a.v)
+    .reduce((m, p, i) => { m[p.name] = i + 1; return m; }, {});
+}
+
+function renderWeeklyPage() {
+  if (!allRows.length) return;
+  const weeks = getWeeklyWeeks();
+  weeklyWeeksCache = weeks;
+  if (!weeks.length) {
+    document.getElementById("weeklyRangeTag").textContent = "ไม่มีข้อมูล";
+    return;
+  }
+  if (weeklyState.weekIdx === null || weeklyState.weekIdx >= weeks.length) weeklyState.weekIdx = weeks.length - 1;
+
+  const products = computeWeeklyProducts(weeks);
+  weeklyProductsCache = products;
+
+  const wi = weeklyState.weekIdx;
+  const totals = weeks.map((w, i) => products.reduce((s, p) => s + (p.series[i] || 0), 0));
+  const totalNow = totals[wi] || 0;
+  const totalPrev = wi > 0 ? totals[wi - 1] : null;
+  const totalWow = (totalPrev != null && totalPrev > 0) ? (totalNow - totalPrev) / totalPrev * 100 : null;
+
+  document.getElementById("weeklyRangeTag").textContent = `${weeks.length} สัปดาห์ · W${isoWeekNum(new Date(weeks[0] + "T00:00:00"))}–W${isoWeekNum(new Date(weeks[weeks.length - 1] + "T00:00:00"))}`;
+  document.getElementById("weeklyWeekLabel").textContent = `W${isoWeekNum(new Date(weeks[wi] + "T00:00:00"))}`;
+  document.getElementById("weeklyWeekRange").textContent = weekDateRangeLabel(weeks[wi]);
+  document.getElementById("weeklyPrevBtn").disabled = wi === 0;
+  document.getElementById("weeklyNextBtn").disabled = wi === weeks.length - 1;
+  document.getElementById("weeklyPrevBtn").style.opacity = wi === 0 ? .4 : 1;
+  document.getElementById("weeklyNextBtn").style.opacity = wi === weeks.length - 1 ? .4 : 1;
+
+  document.getElementById("weeklyTotal").textContent = weeklyFmtValue(totalNow);
+  const wowEl = document.getElementById("weeklyTotalWow");
+  if (totalWow == null) { wowEl.textContent = "เทียบสัปดาห์ก่อน: -"; wowEl.style.color = "var(--muted)"; }
+  else {
+    wowEl.textContent = `${totalWow >= 0 ? "▲" : "▼"} ${Math.abs(totalWow).toFixed(1)}% เทียบสัปดาห์ก่อน`;
+    wowEl.style.color = totalWow >= 0 ? "var(--teal)" : "var(--rose)";
+  }
+
+  const ranked = products.map(p => ({ ...p, v: p.series[wi] || 0, pv: wi > 0 ? (p.series[wi - 1] || 0) : null }))
+    .filter(p => p.v > 0)
+    .sort((a, b) => b.v - a.v);
+  const prevRankMap = wi > 0 ? weeklyRankOf(products, wi - 1) : {};
+
+  document.getElementById("weeklyTop1").textContent = ranked[0] ? ranked[0].name : "-";
+
+  const rising = products.map(p => {
+    const v = p.series[wi] || 0, pv = wi > 0 ? (p.series[wi - 1] || 0) : null;
+    return { name: p.name, cat: p.cat, v, pv, delta: pv != null ? v - pv : null };
+  }).filter(p => p.delta != null && p.delta > 0).sort((a, b) => b.delta - a.delta);
+  const falling = products.map(p => {
+    const v = p.series[wi] || 0, pv = wi > 0 ? (p.series[wi - 1] || 0) : null;
+    return { name: p.name, cat: p.cat, v, pv, delta: pv != null ? v - pv : null };
+  }).filter(p => p.delta != null && p.delta < 0).sort((a, b) => a.delta - b.delta);
+
+  document.getElementById("weeklyRising1").textContent = rising[0] ? rising[0].name : "-";
+
+  const cats = ["all", ...new Set(products.map(p => p.cat))];
+  const catEl = document.getElementById("weeklyCatChips");
+  catEl.innerHTML = cats.map(c => `<button class="btn${weeklyState.cat === c ? " primary" : ""}" data-cat="${c}" style="padding:7px 14px;">${c === "all" ? "ทั้งหมด" : c}</button>`).join("");
+  catEl.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    weeklyState.cat = btn.dataset.cat; weeklyState.selProduct = null; renderWeeklyPage();
+  }));
+
+  const reps = ["all", ...new Set(allRows.map(r => r.seller).filter(Boolean))];
+  const repEl = document.getElementById("weeklyRepChips");
+  repEl.innerHTML = reps.map(r => `<button class="btn${weeklyState.rep === r ? " primary" : ""}" data-rep="${r}" style="padding:7px 14px;">${r === "all" ? "ทุกคน" : r}</button>`).join("");
+  repEl.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    weeklyState.rep = btn.dataset.rep; weeklyState.selProduct = null; renderWeeklyPage();
+  }));
+
+  renderWeeklyTrendChart(weeks, ranked, prevRankMap);
+  renderWeeklyRanking(ranked, prevRankMap);
+  renderWeeklyMovers(rising, falling);
+}
+
+function renderWeeklyTrendChart(weeks, ranked, prevRankMap) {
+  const c = themeColors();
+  const topN = ranked.slice(0, 5).map(p => p.name);
+  let selected = weeklyState.selProduct || topN[0];
+  const lineNames = [...new Set(topN.includes(selected) ? topN : [...topN, selected].filter(Boolean))];
+
+  const weekLabels = weeks.map(w => `W${isoWeekNum(new Date(w + "T00:00:00"))}`);
+  const datasets = lineNames.filter(Boolean).map(name => {
+    const p = weeklyProductsCache.find(x => x.name === name);
+    const isSel = name === selected;
+    return {
+      label: name,
+      data: p ? p.series : weeks.map(() => 0),
+      borderColor: isSel ? c.palette[0] : "#9b9797",
+      backgroundColor: isSel ? c.palette[0] + "2e" : "transparent",
+      borderWidth: isSel ? 3 : 1.5,
+      pointRadius: isSel ? 3 : 0,
+      fill: isSel,
+      tension: .3
+    };
+  });
+
+  const selP = weeklyProductsCache.find(p => p.name === selected);
+  const selV = selP ? (selP.series[weeklyState.weekIdx] || 0) : 0;
+  const selPv = selP && weeklyState.weekIdx > 0 ? (selP.series[weeklyState.weekIdx - 1] || 0) : null;
+  const selWow = (selPv != null && selPv > 0) ? (selV - selPv) / selPv * 100 : null;
+  document.getElementById("weeklyTrendTag").innerHTML = selected
+    ? `${selected} · ${weeklyFmtValue(selV)}${selWow != null ? ` · ${selWow >= 0 ? "▲" : "▼"}${Math.abs(selWow).toFixed(1)}%` : ""}`
+    : "-";
+
+  upsertChart("chartWeeklyTrend", {
+    type: "line",
+    data: { labels: weekLabels, datasets },
+    options: baseOptions({ plugins: { legend: { display: false } } })
+  });
+
+  const legendEl = document.getElementById("weeklyLegend");
+  legendEl.innerHTML = lineNames.filter(Boolean).map(name => {
+    const active = name === selected;
+    return `<button class="btn${active ? " primary" : ""}" data-product="${name}" style="padding:6px 12px;font-size:12px;">${name}</button>`;
+  }).join("");
+  legendEl.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    weeklyState.selProduct = btn.dataset.product;
+    renderWeeklyTrendChart(weeklyWeeksCache, ranked, prevRankMap);
+    renderWeeklyRanking(ranked, prevRankMap);
+  }));
+}
+
+function renderWeeklyRanking(ranked, prevRankMap) {
+  const body = document.getElementById("weeklyRankBody");
+  const empty = document.getElementById("weeklyRankEmpty");
+  const top10 = ranked.slice(0, 10);
+  document.getElementById("weeklyRankTag").textContent = `${ranked.length.toLocaleString()} สินค้า`;
+
+  body.innerHTML = top10.map((p, i) => {
+    const rank = i + 1;
+    const prevRank = prevRankMap[p.name];
+    let changeText = "—", changeColor = "var(--muted)";
+    if (weeklyState.weekIdx === 0) { changeText = "—"; }
+    else if (!prevRank) { changeText = "ใหม่"; changeColor = "var(--sky)"; }
+    else if (prevRank === rank) { changeText = "="; }
+    else { const d = prevRank - rank; changeText = `${d > 0 ? "▲" : "▼"}${Math.abs(d)}`; changeColor = d > 0 ? "var(--teal)" : "var(--rose)"; }
+
+    let wowText = "-", wowColor = "var(--muted)";
+    if (p.pv == null) { wowText = "-"; }
+    else if (p.pv === 0) { wowText = "ใหม่"; wowColor = "var(--sky)"; }
+    else { const wow = (p.v - p.pv) / p.pv * 100; wowText = `${wow >= 0 ? "▲" : "▼"} ${Math.abs(wow).toFixed(0)}%`; wowColor = wow >= 0 ? "var(--teal)" : "var(--rose)"; }
+
+    const selected = weeklyState.selProduct === p.name;
+    return `<tr data-product="${p.name}" style="cursor:pointer;${selected ? "background:var(--primary-soft);" : ""}">
+      <td style="font-weight:800;">${rank}</td>
+      <td><span style="font-weight:600;">${p.name}</span> <span class="badge" style="margin-left:6px;">${p.cat}</span></td>
+      <td class="num" style="font-weight:700;">${weeklyFmtValue(p.v)}</td>
+      <td class="num" style="color:${wowColor};font-weight:700;">${wowText}</td>
+      <td class="num" style="color:${changeColor};font-weight:700;">${changeText}</td>
+    </tr>`;
+  }).join("");
+  empty.style.display = top10.length ? "none" : "block";
+
+  body.querySelectorAll("tr[data-product]").forEach(tr => {
+    tr.addEventListener("click", () => {
+      weeklyState.selProduct = tr.dataset.product;
+      renderWeeklyPage();
+    });
+  });
+}
+
+function renderWeeklyMovers(rising, falling) {
+  const renderList = (id, list, positive) => {
+    const el = document.getElementById(id);
+    if (!list.length) { el.innerHTML = '<div class="empty" style="padding:16px;">ไม่มีข้อมูล</div>'; return; }
+    el.innerHTML = list.slice(0, 5).map(p => {
+      const wow = p.pv > 0 ? (p.delta / p.pv * 100) : null;
+      const color = positive ? "var(--teal)" : "var(--rose)";
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px;">
+        <div style="min-width:0;">
+          <div style="font-weight:600;">${p.name}</div>
+          <div style="font-size:11px;color:var(--muted);">${p.cat}</div>
+        </div>
+        <div style="text-align:right;flex:none;">
+          <div style="font-weight:800;color:${color};">${positive ? "+" : "−"}${weeklyFmtValue(Math.abs(p.delta))}</div>
+          <div style="font-size:11px;color:${color};">${wow != null ? (positive ? "▲" : "▼") + " " + Math.abs(wow).toFixed(1) + "%" : ""}</div>
+        </div>
+      </div>`;
+    }).join("");
+  };
+  renderList("weeklyRisingList", rising, true);
+  renderList("weeklyFallingList", falling, false);
+}
+
+document.getElementById("weeklyPrevBtn").addEventListener("click", () => {
+  if (weeklyState.weekIdx > 0) { weeklyState.weekIdx--; weeklyState.selProduct = null; renderWeeklyPage(); }
+});
+document.getElementById("weeklyNextBtn").addEventListener("click", () => {
+  if (weeklyState.weekIdx < weeklyWeeksCache.length - 1) { weeklyState.weekIdx++; weeklyState.selProduct = null; renderWeeklyPage(); }
+});
+document.getElementById("weeklyMetricRev").addEventListener("click", () => {
+  weeklyState.metric = "rev";
+  document.getElementById("weeklyMetricRev").classList.add("primary");
+  document.getElementById("weeklyMetricQty").classList.remove("primary");
+  renderWeeklyPage();
+});
+document.getElementById("weeklyMetricQty").addEventListener("click", () => {
+  weeklyState.metric = "qty";
+  document.getElementById("weeklyMetricQty").classList.add("primary");
+  document.getElementById("weeklyMetricRev").classList.remove("primary");
+  renderWeeklyPage();
+});
 
 ["fYear", "fSeller", "fDateFrom", "fDateTo"].forEach(id => document.getElementById(id).addEventListener("change", applyFilters));
 document.getElementById("fSearch").addEventListener("input", applyFilters);
