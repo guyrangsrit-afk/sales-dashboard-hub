@@ -560,7 +560,7 @@
           <div class="table-wrap" style="max-height:440px;">
             <table>
               <thead>
-                <tr><th>อันดับ</th><th>สินค้า</th><th class="num">ยอด</th><th class="num">WoW</th><th class="num">เปลี่ยนอันดับ</th></tr>
+                <tr><th>อันดับ</th><th>สินค้า</th><th class="num">ยอด</th><th class="num">ราคาเฉลี่ย</th><th class="num">WoW</th><th class="num">เปลี่ยนอันดับ</th></tr>
               </thead>
               <tbody id="weeklyRankBody"></tbody>
             </table>
@@ -1731,8 +1731,13 @@ function computeWeeklyProducts(weeks) {
     if (wi === undefined) return;
     const cat = productCategory(r.product);
     if (weeklyState.cat !== "all" && cat !== weeklyState.cat) return;
-    if (!map[r.product]) map[r.product] = { name: r.product, cat, series: new Array(weeks.length).fill(0) };
+    if (!map[r.product]) map[r.product] = {
+      name: r.product, cat, series: new Array(weeks.length).fill(0),
+      rev: new Array(weeks.length).fill(0), qty: new Array(weeks.length).fill(0)
+    };
     map[r.product].series[wi] += weeklyState.metric === "qty" ? r.qty : r.sales;
+    map[r.product].rev[wi] += r.sales;
+    map[r.product].qty[wi] += r.qty;
   });
   return Object.values(map);
 }
@@ -1785,7 +1790,10 @@ function renderWeeklyPage() {
     wowEl.style.color = totalWow >= 0 ? "var(--teal)" : "var(--rose)";
   }
 
-  const ranked = products.map(p => ({ ...p, v: p.series[wi] || 0, pv: wi > 0 ? (p.series[wi - 1] || 0) : null }))
+  const ranked = products.map(p => ({
+    ...p, v: p.series[wi] || 0, pv: wi > 0 ? (p.series[wi - 1] || 0) : null,
+    avgPrice: p.qty[wi] > 0 ? p.rev[wi] / p.qty[wi] : null
+  }))
     .filter(p => p.v > 0)
     .sort((a, b) => b.v - a.v);
   const prevRankMap = wi > 0 ? weeklyRankOf(products, wi - 1) : {};
@@ -1901,6 +1909,7 @@ function renderWeeklyRanking(ranked, prevRankMap) {
       <td style="font-weight:800;">${rank}</td>
       <td><span style="font-weight:600;">${p.name}</span> <span class="badge" style="margin-left:6px;">${p.cat}</span></td>
       <td class="num" style="font-weight:700;">${weeklyFmtValue(p.v)}</td>
+      <td class="num" style="color:var(--muted);">${p.avgPrice != null ? fmt(p.avgPrice) + " บาท" : "-"}</td>
       <td class="num" style="color:${wowColor};font-weight:700;">${wowText}</td>
       <td class="num" style="color:${changeColor};font-weight:700;">${changeText}</td>
     </tr>`;
