@@ -1693,7 +1693,10 @@ function mondayOf(dateStr) {
   d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
   return d;
 }
-function isoDateStr(d) { return d.toISOString().slice(0, 10); }
+function isoDateStr(d) {
+  const p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
 function isoWeekNum(d) {
   const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
