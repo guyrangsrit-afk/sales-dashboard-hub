@@ -499,7 +499,7 @@
       <section class="block">
         <div class="card">
           <div class="card-head"><h3>เทรนด์สินค้ารายสัปดาห์</h3><span class="tag" id="weeklyRangeTag">-</span></div>
-          <div style="font-size:11px;color:var(--muted);margin:-8px 0 14px;">จัดกลุ่มยอดขายเป็นสัปดาห์ (จันทร์-อาทิตย์) จาก 8 สัปดาห์ล่าสุดที่ข้อมูลครบ · หมวดสินค้าประมาณจากชื่อสินค้า</div>
+          <div style="font-size:11px;color:var(--muted);margin:-8px 0 14px;">จัดกลุ่มยอดขายเป็นสัปดาห์ (จันทร์-อาทิตย์) จาก 8 สัปดาห์ล่าสุด (สัปดาห์ปัจจุบันอาจยังไม่ครบ ตัวเลข WoW จึงต่ำกว่าจริง) · หมวดสินค้าประมาณจากชื่อสินค้า</div>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
             <div style="display:flex;align-items:center;gap:10px;">
               <button class="btn" id="weeklyPrevBtn" style="padding:9px 13px;">‹</button>
@@ -1719,8 +1719,14 @@ function productCategory(name) {
 function getWeeklyWeeks() {
   const weekSet = new Set();
   allRows.forEach(r => { if (r.date) weekSet.add(isoDateStr(mondayOf(r.date))); });
-  const todayMonday = isoDateStr(mondayOf(isoDateStr(new Date())));
-  return [...weekSet].filter(w => w < todayMonday).sort().slice(-8);
+  return [...weekSet].sort().slice(-8);
+}
+
+function isPartialWeek(mondayStr) {
+  const sun = new Date(mondayStr + "T00:00:00");
+  sun.setDate(sun.getDate() + 6);
+  const lastDate = allRows.reduce((m, r) => (r.date > m ? r.date : m), "");
+  return lastDate < isoDateStr(sun);
 }
 
 function computeWeeklyProducts(weeks) {
@@ -1779,7 +1785,7 @@ function renderWeeklyPage() {
 
   document.getElementById("weeklyRangeTag").textContent = `${weeks.length} สัปดาห์ · W${isoWeekNum(new Date(weeks[0] + "T00:00:00"))}–W${isoWeekNum(new Date(weeks[weeks.length - 1] + "T00:00:00"))}`;
   document.getElementById("weeklyWeekLabel").textContent = `W${isoWeekNum(new Date(weeks[wi] + "T00:00:00"))}`;
-  document.getElementById("weeklyWeekRange").textContent = weekDateRangeLabel(weeks[wi]);
+  document.getElementById("weeklyWeekRange").textContent = weekDateRangeLabel(weeks[wi]) + (isPartialWeek(weeks[wi]) ? " (ยังไม่ครบ)" : "");
   document.getElementById("weeklyPrevBtn").disabled = wi === 0;
   document.getElementById("weeklyNextBtn").disabled = wi === weeks.length - 1;
   document.getElementById("weeklyPrevBtn").style.opacity = wi === 0 ? .4 : 1;
